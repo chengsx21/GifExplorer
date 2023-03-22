@@ -9,4 +9,4 @@ pytest-django
 coverage
 pyJWT
 
-# uWSGI
+uWSGI
