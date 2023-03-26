@@ -19,7 +19,9 @@ def startup(req: HttpRequest):
     '''
         test deployment
     '''
-    return HttpResponse("Congratulations! Go ahead!")
+    if req.method == "GET":
+        return HttpResponse("Congratulations! Go ahead!")
+
 
 @csrf_exempt
 @CheckRequire
@@ -48,12 +50,12 @@ def user_register(req: HttpRequest):
 
         if not helpers.user_username_checker(user_name):
             return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
-        elif not helpers.user_password_checker(password):
-            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
+        # elif not helpers.user_password_checker(password):
+        #     return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
         else:
             user = UserInfo.objects.filter(user_name=user_name).first()
             if not user:
-                user = UserInfo(user_name=user_name, password=helpers.md5(password))
+                user = UserInfo(user_name=user_name, password=helpers.hash_password(password))
                 user.save()
                 user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
                 return_data = {
@@ -63,9 +65,53 @@ def user_register(req: HttpRequest):
                         "token": user_token
                     }
                 }
-                # TODO！ helpers.enable_token(user_token)
+                # TODO！ helpers.add_token_to_white_list(user_token)
                 return request_success(return_data)
             else:
                 return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
     else:
         return NOT_FOUND
+
+
+@csrf_exempt
+@CheckRequire
+def user_login(req: HttpRequest):
+    '''
+    request:
+    {
+        "user_name": "FirstUser",
+        "password": "Hashed-Word"
+    }
+    response:
+    {
+        "code": 0,
+        "info": "SUCCESS",
+        "data": {
+            "id": 1,
+            "user_name": "FirstUser",
+            "token": "SECRET_TOKEN"
+        }
+    }
+    '''
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        user_name = require(body, "user_name", "string", err_msg="Error type of [user_name]")
+        password = require(body, "password", "string", err_msg="Error type of [password]")
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:  # user name not existed yet.
+            return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+        else:
+            if helpers.check_password(password, user.password):
+                user_token = helpers.create_token(user_id=user.id, user_name=user.user_name)
+                return_data = {
+                    "data": {
+                        "id": user.id,
+                        "user_name": user_name,
+                        "token": user_token
+                    }
+                }
+                # TODO! helpers.add_token_to_white_list(user_token)
+                return request_success(return_data)
+            else:
+                return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+    return NOT_FOUND

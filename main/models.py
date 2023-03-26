@@ -20,6 +20,7 @@ class UserInfo(models.Model):
     favorites = models.JSONField(null=True, blank=True, default=dict)
     read_history = models.JSONField(null=True, blank=True, default=dict)
     search_history = models.JSONField(null=True, blank=True, default=dict)
+    objects = models.Manager()
 
     def __str__(self) -> str:
         return str(self.user_name)

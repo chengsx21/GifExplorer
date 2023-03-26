@@ -1,6 +1,7 @@
 __pycache__/
 **/migrations/
 db.sqlite3
+start.sh
 
 .coverage
 coverage-reports/
