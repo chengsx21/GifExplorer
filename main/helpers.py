@@ -1,6 +1,9 @@
+'''
+    This helpers.py file contains tools used in views.py - Created by csx
+'''
 import hashlib
-import jwt
 import re
+import jwt
 
 SECRET_KEY = "Welcome to the god damned SE world!"
 
@@ -48,8 +51,8 @@ def user_password_checker(password: str):
         return False
     if not re.search(r"[#_!-]", password):
         return False
-    COMMON_PASSWORDS = ["12345678", "password"]
-    if password in COMMON_PASSWORDS:
+    common_password = ["12345678", "password"]
+    if password in common_password:
         return False
     if len(re.findall('[A-Za-z0-9#_!-]', password)) < len(password):
         return False
@@ -61,16 +64,19 @@ def md5(password):
         input: str
         output: md5(str)
     """
-    md5 = hashlib.md5()
-    md5.update(password.encode(encoding='UTF-8'))
-    encrypted_password = md5.hexdigest()
+    password_md5 = hashlib.md5()
+    password_md5.update(password.encode(encoding='UTF-8'))
+    encrypted_password = password_md5.hexdigest()
     return str(encrypted_password)
 
 
-def create_token(user_name, id):
+def create_token(user_name, user_id):
+    '''
+        create a jwt token for a user
+    '''
     payload = {
-        "id":id,
+        "id": user_id,
         "user_name": user_name
     }
-    encoded_token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    encoded_token = "GifExplorer " + jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return encoded_token
