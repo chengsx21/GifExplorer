@@ -85,11 +85,18 @@ def check_password(password, password_hashed):
 
 def create_token(user_name, user_id):
     '''
-        create a jwt token for a user
+        Create a jwt token for user
     '''
     payload = {
         "id": user_id,
         "user_name": user_name
     }
-    encoded_token = "GifExplorer " + jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    encoded_token = "Bearer " + jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return encoded_token
+
+def decode_token(token):
+    """
+        Decode a jwt token for user
+    """
+    encoded_token = token.replace("Bearer ", "")
+    return jwt.decode(encoded_token, SECRET_KEY, algorithms=["HS256"])
