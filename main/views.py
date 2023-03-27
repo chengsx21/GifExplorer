@@ -159,3 +159,22 @@ def user_modify_password(req: HttpRequest):
         user.save()
         return request_success(data={"data": {}})
     return INTERNAL_ERROR
+
+@csrf_exempt
+@CheckRequire
+def user_logout(req: HttpRequest):
+    '''
+    request:
+        token in 'HTTP_AUTHORIZATION'.
+    response:
+        nothing
+    '''
+    if req.method == "POST":
+        encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+        if helpers.is_token_valid(token=encoded_token):
+            helpers.delete_token_from_white_list(token=encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return request_success(data={"data": {}})
+            return INTERNAL_ERROR
+        return UNAUTHORIZED
+    return INTERNAL_ERROR
