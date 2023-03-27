@@ -125,4 +125,17 @@ def is_token_valid(token):
     if token in USER_WHITE_LIST[user_id]:
         return True
     return False
-        
+
+def delete_token_from_white_list(token):
+    '''
+        Delete token from white list
+    '''
+    decoded_token = decode_token(token)
+    user_id = decoded_token["id"]
+    if user_id not in USER_WHITE_LIST:
+        return False
+    if token in USER_WHITE_LIST[user_id]:
+        while token in USER_WHITE_LIST[user_id]:
+            USER_WHITE_LIST[user_id].remove(token)
+        return True
+    return False
