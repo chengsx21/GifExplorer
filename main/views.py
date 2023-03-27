@@ -65,7 +65,7 @@ def user_register(req: HttpRequest):
                     "token": user_token
                 }
             }
-            # TODO！ helpers.add_token_to_white_list(user_token)
+            helpers.add_token_to_white_list(user_token)
             return request_success(return_data)
         return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
     return NOT_FOUND
@@ -107,7 +107,7 @@ def user_login(req: HttpRequest):
                     "token": user_token
                 }
             }
-            # TODO! helpers.add_token_to_white_list(user_token)
+            helpers.add_token_to_white_list(user_token)
             return request_success(return_data)
         return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
     return NOT_FOUND
@@ -131,10 +131,9 @@ def user_modify_password(req: HttpRequest):
     '''
     if req.method == "POST":
         encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-        print(encoded_token)
         token = helpers.decode_token(encoded_token)
-        # TODO! if not helpers.check_token_in_white_list(encoded_token=encoded_token):
-        # TODO!    return UNAUTHORIZED
+        if not helpers.is_token_valid(token=encoded_token):
+            return UNAUTHORIZED
 
         body = json.loads(req.body.decode("utf-8"))
         user_name = require(body, "user_name", "string", err_msg="Error type of [user_name]")

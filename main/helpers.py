@@ -7,24 +7,26 @@ import jwt
 
 SECRET_KEY = "Welcome to the god damned SE world!"
 
+USER_WHITE_LIST = {}
+
 def is_english(char: str):
-    """
+    '''
         Test if char is english
-    """
+    '''
     if re.search('[a-z]', char) or re.search('[A-Z]', char):
         return True
     return False
 
 def is_chinese(char: str):
-    """
+    '''
         Test if char is chinese
-    """
+    '''
     return re.match(".*[\u3400-\u4DB5\u4E00-\u9FCB\uF900-\uFA6A].*", char)
 
 def user_username_checker(user_name: str):
-    """
+    '''
         Check user's username
-    """
+    '''
     if not isinstance(user_name, str):
         return False
     if len(user_name) > 14:
@@ -34,9 +36,9 @@ def user_username_checker(user_name: str):
     return True
 
 # def user_password_checker(password: str):
-#     """
+#     '''
 #         Check user's password
-#     """
+#     '''
 #     if not isinstance(password, str):
 #         return False
 #     if not 8 <= len(password) <= 14:
@@ -57,19 +59,19 @@ def user_username_checker(user_name: str):
 #     return True
 
 # def md5(password):
-#     """
+#     '''
 #         Input: str
 #         Output: md5(str)
-#     """
+#     '''
 #     password_md5 = hashlib.md5()
 #     password_md5.update(password.encode(encoding='UTF-8'))
 #     encrypted_password = password_md5.hexdigest()
 #     return str(encrypted_password)
 
 def hash_password(password):
-    """
+    '''
         Encrypts password using MD5 hash function
-    """
+    '''
     # perform 1000 iterations of MD5 hash function on the password
     password = password.encode('utf-8')
     for _ in range(1000):
@@ -77,9 +79,9 @@ def hash_password(password):
     return password.decode('utf-8')
 
 def check_password(password, hashed_password):
-    """
+    '''
         Checks whether a password matches its hashed representation
-    """
+    '''
     password = hash_password(password)
     return password == hashed_password
 
@@ -95,8 +97,32 @@ def create_token(user_name, user_id):
     return encoded_token
 
 def decode_token(token):
-    """
+    '''
         Decode a jwt token for user
-    """
+    '''
     encoded_token = token.replace("Bearer ", "")
     return jwt.decode(encoded_token, SECRET_KEY, algorithms="HS256")
+
+def add_token_to_white_list(token):
+    '''
+        Add token to white list
+    '''
+    decoded_token = decode_token(token)
+    user_id = decoded_token["id"]
+    if user_id not in USER_WHITE_LIST:
+        USER_WHITE_LIST[user_id] = []
+    if token not in USER_WHITE_LIST[user_id]:
+        USER_WHITE_LIST[user_id].append(token)
+
+def is_token_valid(token):
+    '''
+        Check user's token in white list
+    '''
+    decoded_token = decode_token(token)
+    user_id = decoded_token["id"]
+    if user_id not in USER_WHITE_LIST:
+        return False
+    if token in USER_WHITE_LIST[user_id]:
+        return True
+    return False
+        
