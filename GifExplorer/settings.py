@@ -30,7 +30,7 @@ if DEPLOY_CONDITION is not None:
 else:
     DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition

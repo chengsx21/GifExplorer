@@ -1,13 +1,11 @@
-from django.db import models
-from django.db.models import AutoField, CharField, URLField, DateTimeField
-from django.db.models import TextField, ForeignKey, IntegerField, JSONField
-from django.db.models import BooleanField
-from utils import utils_time
-from utils.utils_request import return_field
-from utils.utils_require import MAX_CHAR_LENGTH
+'''
+    models.py in django frame work
+'''
 
-# Create your models here.
-class User(models.Model):
+from django.db import models
+from django.db.models import DateTimeField
+
+class UserInfo(models.Model):
     """
         model for user
     """
@@ -18,13 +16,39 @@ class User(models.Model):
     signature = models.CharField(max_length=200, blank=True)
     mail = models.CharField(max_length=100, blank=True)
     register_time = DateTimeField(auto_now_add=True)
-    # avatar = TextField(blank=True)
-    # favorites = JSONField(null=True, blank=True, default=dict)
-    # read_history = JSONField(null=True, blank=True, default=dict)
-    # search_history = JSONField(null=True, blank=True, default=dict)
+    # avatar = models.TextField(blank=True)
+    favorites = models.JSONField(null=True, blank=True, default=dict)
+    read_history = models.JSONField(null=True, blank=True, default=dict)
+    search_history = models.JSONField(null=True, blank=True, default=dict)
+    objects = models.Manager()
 
     def __str__(self) -> str:
         return str(self.user_name)
 
     class Meta:
-        indexes = [models.Index(fields=["user_name"])]
+        '''
+            set table name in db
+        '''
+        db_table = "user"
+
+class Gif(models.Model):
+    """
+        model for Gif
+    """
+    id = models.AutoField(primary_key=True)
+    gif_file = models.ImageField(upload_to='gifs/')
+    title = models.CharField(max_length=200)
+    width = models.PositiveIntegerField()
+    height = models.PositiveIntegerField()
+    duration = models.FloatField()
+    uploader = models.PositiveIntegerField()
+    category = models.CharField(max_length=20)
+    tags = models.JSONField(null=True, blank=True, default=dict)
+    likes = models.PositiveIntegerField(default=0)
+    pub_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "gif"

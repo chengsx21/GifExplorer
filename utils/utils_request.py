@@ -1,7 +1,13 @@
+'''
+    This utils_request.py file contains tools to generate http response
+'''
 from django.http import JsonResponse
 
 
 def request_failed(code, info, status_code=400, data={}):
+    '''
+        Return a http failure response
+    '''
     return JsonResponse({
         "code": code,
         "info": info,
@@ -10,6 +16,9 @@ def request_failed(code, info, status_code=400, data={}):
 
 
 def request_success(data={}):
+    '''
+        Return a http success response
+    '''
     return JsonResponse({
         "code": 0,
         "info": "Succeed",
@@ -18,6 +27,9 @@ def request_success(data={}):
 
 
 def return_field(obj_dict, field_list):
+    '''
+        Return specific key-value pairs
+    '''
     for field in field_list:
         assert field in obj_dict, f"Field `{field}` not found in object."
 
@@ -29,3 +41,7 @@ def return_field(obj_dict, field_list):
 BAD_METHOD = request_failed(-3, "Bad method", 405, {"data": {}})
 
 NOT_FOUND = request_failed(1000, "NOT_FOUND", 404, {"data": {}})
+
+UNAUTHORIZED = request_failed(1001, "UNAUTHORIZED", 401, {"data": {}})
+
+INTERNAL_ERROR = request_failed(1003, "INTERNAL_ERROR", 500, {"data": {}})
