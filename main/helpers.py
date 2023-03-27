@@ -76,12 +76,12 @@ def hash_password(password):
         password = hashlib.md5(password).hexdigest().encode('utf-8')
     return password.decode('utf-8')
 
-def check_password(password, password_hashed):
+def check_password(password, hashed_password):
     """
         Checks whether a password matches its hashed representation
     """
     password = hash_password(password)
-    return password == password_hashed
+    return password == hashed_password
 
 def create_token(user_name, user_id):
     '''
@@ -99,4 +99,4 @@ def decode_token(token):
         Decode a jwt token for user
     """
     encoded_token = token.replace("Bearer ", "")
-    return jwt.decode(encoded_token, SECRET_KEY, algorithms=["HS256"])
+    return jwt.decode(encoded_token, SECRET_KEY, algorithms="HS256")
