@@ -5,6 +5,9 @@ django-cors-headers
 # mysqlclient==2.1.0
 
 pytest
+pycodestyle
+pytest
+pylint
 pytest-django
 coverage
 pyJWT

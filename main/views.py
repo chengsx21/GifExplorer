@@ -47,7 +47,7 @@ def user_register(req: HttpRequest):
         if not (isinstance(user_name, str) and helpers.user_username_checker(user_name)):
             return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
         if not isinstance(password, str):
-            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})        
+            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
 
         user = UserInfo.objects.filter(user_name=user_name).first()
         if not user:
