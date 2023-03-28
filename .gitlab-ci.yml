@@ -17,7 +17,6 @@ build:
 unit-test:
   image: python:3.9
   stage: test
-  allow_failure: true
 
   before_script:
     - pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
