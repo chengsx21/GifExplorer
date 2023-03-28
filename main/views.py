@@ -4,17 +4,14 @@
 
 import json
 from django.http import HttpRequest, HttpResponse
-# from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from utils.utils_request import NOT_FOUND, UNAUTHORIZED, INTERNAL_ERROR, request_failed, request_success
-from utils.utils_require import CheckRequire, require
 from . import helpers
 from .models import UserInfo
 
 
 # Create your views here.
 @csrf_exempt
-@CheckRequire
 def startup(req: HttpRequest):
     '''
         test deployment
@@ -24,7 +21,6 @@ def startup(req: HttpRequest):
 
 
 @csrf_exempt
-@CheckRequire
 def user_register(req: HttpRequest):
     '''
     request:
@@ -45,13 +41,12 @@ def user_register(req: HttpRequest):
     '''
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        user_name = require(body, "user_name", "string", err_msg="Error type of [user_name]")
-        password = require(body, "password", "string", err_msg="Error type of [password]")
-
-        if not helpers.user_username_checker(user_name):
+        user_name = body["user_name"]
+        password = body["password"]
+        if not (isinstance(user_name, str) and helpers.user_username_checker(user_name)):
             return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
-        # elif not helpers.user_password_checker(password):
-        #     return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
+        if not isinstance(password, str):
+            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
 
         user = UserInfo.objects.filter(user_name=user_name).first()
         if not user:
@@ -72,7 +67,6 @@ def user_register(req: HttpRequest):
 
 
 @csrf_exempt
-@CheckRequire
 def user_login(req: HttpRequest):
     '''
     request:
@@ -93,8 +87,11 @@ def user_login(req: HttpRequest):
     '''
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        user_name = require(body, "user_name", "string", err_msg="Error type of [user_name]")
-        password = require(body, "password", "string", err_msg="Error type of [password]")
+        user_name = body["user_name"]
+        password = body["password"]
+        if not (isinstance(user_name, str) and isinstance(password, str)):
+            return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+
         user = UserInfo.objects.filter(user_name=user_name).first()
         if not user:  # user name not existed yet.
             return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
@@ -113,7 +110,6 @@ def user_login(req: HttpRequest):
     return NOT_FOUND
 
 @csrf_exempt
-@CheckRequire
 def user_modify_password(req: HttpRequest):
     '''
     request:
@@ -136,9 +132,11 @@ def user_modify_password(req: HttpRequest):
             return UNAUTHORIZED
 
         body = json.loads(req.body.decode("utf-8"))
-        user_name = require(body, "user_name", "string", err_msg="Error type of [user_name]")
-        old_password = require(body, "old_password", "string", err_msg="Error type of [old_password]")
-        new_password = require(body, "new_password", "string", err_msg="Error type of [new_password]")
+        user_name = body["user_name"]
+        old_password = body["old_password"]
+        new_password = body["new_password"]
+        if not (isinstance(user_name, str) and isinstance(old_password, str) and isinstance(new_password, str)):
+            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
 
         if not user_name == token["user_name"]:
             return UNAUTHORIZED
@@ -148,20 +146,12 @@ def user_modify_password(req: HttpRequest):
             return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
         if not helpers.check_password(old_password, user.password):
             return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
-        # elif not helpers.user_password_checker(new_password):
-        #     status_code = 400
-        #     response_msg = {
-        #         "code": 3,
-        #         "message": "INVALID_PASSWORD_FORMAT",
-        #         "data": {}
-        #     }
         user.password = helpers.hash_password(new_password)
         user.save()
         return request_success(data={"data": {}})
     return INTERNAL_ERROR
 
 @csrf_exempt
-@CheckRequire
 def user_logout(req: HttpRequest):
     '''
     request:

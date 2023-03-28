@@ -6,9 +6,9 @@ from django.db import models
 from django.db.models import DateTimeField
 
 class UserInfo(models.Model):
-    """
+    '''
         model for user
-    """
+    '''
     id = models.BigAutoField(primary_key=True)
     tags = models.JSONField(null=True, blank=True, default=dict)
     user_name = models.CharField(max_length=12, unique=True)
@@ -16,7 +16,7 @@ class UserInfo(models.Model):
     signature = models.CharField(max_length=200, blank=True)
     mail = models.CharField(max_length=100, blank=True)
     register_time = DateTimeField(auto_now_add=True)
-    # avatar = models.TextField(blank=True)
+    avatar = models.TextField(blank=True)
     favorites = models.JSONField(null=True, blank=True, default=dict)
     read_history = models.JSONField(null=True, blank=True, default=dict)
     search_history = models.JSONField(null=True, blank=True, default=dict)
@@ -32,9 +32,9 @@ class UserInfo(models.Model):
         db_table = "user"
 
 class Gif(models.Model):
-    """
+    '''
         model for Gif
-    """
+    '''
     id = models.AutoField(primary_key=True)
     gif_file = models.ImageField(upload_to='gifs/')
     title = models.CharField(max_length=200)
