@@ -63,6 +63,22 @@ class ViewsTests(TestCase):
         return self.client.post('/user/register', data=req, content_type="application/json")
 
 
+    def user_modify_password_with_correct_response_method(self, user_name, old_password, new_password, token):
+        '''
+            Create a POST/user/modifypassword HttpRequest
+        '''
+        req = {
+            "user_name": user_name,
+            "old_password": old_password,
+            "new_password": new_password
+        }
+        return self.client.post('/user/modifypassword', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def user_logout_with_correct_response_method(self, token):
+        '''
+            Create a POST/user/modifypassword HttpRequest
+        '''
+        return self.client.post('/user/logout', data={}, content_type="application/json", HTTP_AUTHORIZATION=token)
 
     def test_user_login(self):
         '''
@@ -142,3 +158,84 @@ class ViewsTests(TestCase):
 
         res = self.user_register_with_correct_response_method(user_name=1145141919810, password="password")
         self.assertEqual(res.status_code, 400)
+
+    def test_user_modify_password(self):
+        '''
+            Test user modify password
+        '''
+        for i in range(self.user_num):
+            user_name = self.user_name_list[i]
+            old_password = self.user_password[i]
+            new_password = "New_" + self.user_password[i]
+
+            token = helpers.create_token(user_name=user_name, user_id=i)
+            helpers.add_token_to_white_list(token)
+            self.assertEqual(helpers.is_token_valid(token), True)
+
+            res = self.user_modify_password_with_correct_response_method(user_name=user_name, old_password=old_password, new_password=new_password, token=token)
+            self.assertEqual(res.status_code, 200)
+
+            res = self.user_modify_password_with_correct_response_method(user_name=user_name, old_password=new_password, new_password=old_password, token=token)
+            self.assertEqual(res.status_code, 200)
+
+    def test_user_modify_password_with_wrong_token(self):
+        '''
+            Test user modify password with wrong token
+        '''
+        for i in range(self.user_num):
+            user_name = self.user_name_list[i]
+            old_password = self.user_password[i]
+            new_password = "New!" + self.user_password[i]
+
+            token = helpers.create_token(user_name=self.user_name_list[i - 1], user_id=i)
+            helpers.add_token_to_white_list(token)
+            res = self.user_modify_password_with_correct_response_method(user_name=user_name, old_password=old_password, new_password=new_password, token=token)
+            self.assertEqual(res.status_code, 401)
+
+    def test_user_modify_password_with_user_not_exist(self):
+        '''
+            Test user modify password when user not exist
+        '''
+        for i in range(self.user_num):
+            user_name = "New!" + self.user_name_list[i]
+            old_password = self.user_password[i]
+            new_password = "New!" + self.user_password[i]
+
+            token = helpers.create_token(user_name=user_name, user_id=i)
+            helpers.add_token_to_white_list(token)
+            res = self.user_modify_password_with_correct_response_method(user_name=user_name, old_password=old_password, new_password=new_password, token=token)
+            self.assertEqual(res.status_code, 400)
+
+    def test_user_modify_password_with_wrong_password(self):
+        '''
+            Test user modify password with wrong old password
+        '''
+        for i in range(self.user_num):
+            user_name = self.user_name_list[i]
+            old_password = self.user_password[i - 1]
+            new_password = self.user_password[i] + "new"
+
+            token = helpers.create_token(user_name=user_name, user_id=i)
+            helpers.add_token_to_white_list(token)
+            res = self.user_modify_password_with_correct_response_method(user_name=user_name, old_password=old_password, new_password=new_password, token=token)
+            self.assertEqual(res.status_code, 400)
+
+    def test_user_logout(self):
+        '''
+            Test user logout function
+        '''
+        for i in range(self.user_num):
+            user_name = self.user_name_list[i]
+            res = self.user_logout_with_correct_response_method(helpers.create_token(user_name="", user_id=""))
+            self.assertEqual(res.status_code, 401)
+
+            token = helpers.create_token(user_name=user_name, user_id=i)
+            res = self.user_logout_with_correct_response_method(token)
+            self.assertEqual(res.status_code, 401)
+
+            helpers.add_token_to_white_list(token)
+            res = self.user_logout_with_correct_response_method(token)
+            self.assertEqual(res.status_code, 200)
+
+            res = self.user_logout_with_correct_response_method(token)
+            self.assertEqual(res.status_code, 401)
