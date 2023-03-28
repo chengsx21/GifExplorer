@@ -4,7 +4,6 @@
 
 import json
 from django.http import HttpRequest, HttpResponse
-# from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from utils.utils_request import NOT_FOUND, UNAUTHORIZED, INTERNAL_ERROR, request_failed, request_success
 from . import helpers

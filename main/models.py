@@ -16,7 +16,7 @@ class UserInfo(models.Model):
     signature = models.CharField(max_length=200, blank=True)
     mail = models.CharField(max_length=100, blank=True)
     register_time = DateTimeField(auto_now_add=True)
-    # avatar = models.TextField(blank=True)
+    avatar = models.TextField(blank=True)
     favorites = models.JSONField(null=True, blank=True, default=dict)
     read_history = models.JSONField(null=True, blank=True, default=dict)
     search_history = models.JSONField(null=True, blank=True, default=dict)
