@@ -2,6 +2,7 @@
     views.py in django frame work
 '''
 
+import os
 import json
 from PIL import Image
 from django.http import HttpRequest, HttpResponse
@@ -243,3 +244,82 @@ def image_upload(req: HttpRequest):
         }
         return request_success(return_data)
     return INTERNAL_ERROR
+
+@csrf_exempt
+def image_detail(req: HttpRequest, gif_id: any):
+    '''
+    GET:
+    request:
+        {
+            "id": "514"
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "id": 514,
+                "title": "Wonderful Gif",
+                "url": "https://wonderful-gif/apple.gif",
+                "uploader": "AliceBurn", 
+                "pub_time": "2023-03-21T19:02:16.305Z",
+                "like": 114514
+            }
+        }
+    DELETE:
+    request:
+        {
+            "id": "514"
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {}
+        }
+        {
+            "code": 9,
+            "info": "GIFS_NOT_FOUND",
+            "data": {}
+        }
+        {
+            "code": 1,
+            "info": "USER_NAME_CONFLICT",
+            "data": {}
+        }
+    '''
+    if req.method == "GET":
+        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+        gif = Gif.objects.filter(id=gif_id).first()
+        if not gif:
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        user = UserInfo.objects.filter(id=gif.uploader).first()
+
+        return_data = {
+                "id": gif.id,
+                "title": gif.title,
+                # "url": gif.gif_file.url,
+                "uploader": user.user_name,
+                "pub_time": gif.pub_time,
+                "like": gif.likes
+            }
+        return request_success(return_data)
+    elif req.method == "DELETE":
+        encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+        token = helpers.decode_token(encoded_token)
+        if not helpers.is_token_valid(token=encoded_token):
+            return UNAUTHORIZED
+
+        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+        gif = Gif.objects.filter(id=gif_id).first()
+        if not gif:
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        if gif.uploader != token["id"]:
+            return UNAUTHORIZED
+        gif.delete()
+        return request_success(data={"data": {}})
+    return NOT_FOUND

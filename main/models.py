@@ -47,6 +47,7 @@ class Gif(models.Model):
     tags = models.JSONField(null=True, blank=True, default=list)
     likes = models.PositiveIntegerField(default=0)
     pub_time = models.DateTimeField(auto_now_add=True)
+    objects = models.Manager()
 
     class Meta:
         '''
