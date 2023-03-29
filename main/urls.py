@@ -14,4 +14,5 @@ urlpatterns = [
     path('image', views.image_upload),
     path('image/<gif_id>', views.image_detail),
     path('image/preview/<gif_id>', views.image_preview),
+    path('image/download/<gif_id>', views.image_download)
 ]
