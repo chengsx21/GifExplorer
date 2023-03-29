@@ -1,7 +1,7 @@
 '''
     views.py in django frame work
 '''
-
+import os
 import json
 from wsgiref.util import FileWrapper
 from PIL import Image
@@ -326,7 +326,7 @@ def image_preview(req: HttpRequest, gif_id: any):
     request:
         None
     response:
-        Return a HttpResponse including the gif
+        Return a HttpResponse including the gif for preview
     '''
     if req.method == "GET":
         if not isinstance(gif_id, str) or not gif_id.isdecimal():
@@ -339,5 +339,28 @@ def image_preview(req: HttpRequest, gif_id: any):
         file_wrapper = FileWrapper(gif_file)
         response = HttpResponse(file_wrapper, content_type='image/gif')
         response['Content-Disposition'] = f'inline; filename="{gif.gif_file.name}"'
+        return response
+    return NOT_FOUND
+
+@csrf_exempt
+def image_download(req: HttpRequest, gif_id: any):
+    '''
+    request:
+        None
+    response:
+        Return a HttpResponse including the gif for download
+    '''
+    if req.method == "GET":
+        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+        gif = Gif.objects.filter(id=gif_id).first()
+        if not gif:
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        gif_file = open(gif.gif_file.path, 'rb')
+        file_wrapper = FileWrapper(gif_file)
+        file_name = os.path.basename(gif.gif_file.path)
+        response = HttpResponse(file_wrapper, content_type='application/octet-stream')
+        response['Content-Disposition'] = 'attachment; filename=' + file_name
         return response
     return NOT_FOUND
