@@ -2,8 +2,8 @@
     views.py in django frame work
 '''
 
-import os
 import json
+from wsgiref.util import FileWrapper
 from PIL import Image
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -250,9 +250,7 @@ def image_detail(req: HttpRequest, gif_id: any):
     '''
     GET:
     request:
-        {
-            "id": "514"
-        }
+        Node
     response:
         {
             "code": 0,
@@ -268,9 +266,7 @@ def image_detail(req: HttpRequest, gif_id: any):
         }
     DELETE:
     request:
-        {
-            "id": "514"
-        }
+        None
     response:
         {
             "code": 0,
@@ -322,4 +318,26 @@ def image_detail(req: HttpRequest, gif_id: any):
             return UNAUTHORIZED
         gif.delete()
         return request_success(data={"data": {}})
+    return NOT_FOUND
+
+@csrf_exempt
+def image_preview(req: HttpRequest, gif_id: any):
+    '''
+    request:
+        None
+    response:
+        Return a HttpResponse including the gif
+    '''
+    if req.method == "GET":
+        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+        gif = Gif.objects.filter(id=gif_id).first()
+        if not gif:
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        gif_file = open(gif.gif_file.path, 'rb')
+        file_wrapper = FileWrapper(gif_file)
+        response = HttpResponse(file_wrapper, content_type='image/gif')
+        response['Content-Disposition'] = f'inline; filename="{gif.gif_file.name}"'
+        return response
     return NOT_FOUND
