@@ -44,7 +44,7 @@ def user_register(req: HttpRequest):
         body = json.loads(req.body.decode("utf-8"))
         user_name = body["user_name"]
         password = body["password"]
-        if not (isinstance(user_name, str) and helpers.user_username_checker(user_name)):
+        if not helpers.user_username_checker(user_name):
             return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
         if not isinstance(password, str):
             return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
@@ -90,12 +90,14 @@ def user_login(req: HttpRequest):
         body = json.loads(req.body.decode("utf-8"))
         user_name = body["user_name"]
         password = body["password"]
-        if not (isinstance(user_name, str) and isinstance(password, str)):
-            return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+        if not helpers.user_username_checker(user_name):
+            return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
+        if not isinstance(password, str):
+            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
 
         user = UserInfo.objects.filter(user_name=user_name).first()
         if not user:  # user name not existed yet.
-            return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
         if helpers.check_password(password, user.password):
             user_token = helpers.create_token(user_id=user.id, user_name=user.user_name)
             return_data = {
@@ -107,7 +109,7 @@ def user_login(req: HttpRequest):
             }
             helpers.add_token_to_white_list(user_token)
             return request_success(return_data)
-        return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+        return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
     return NOT_FOUND
 
 @csrf_exempt
@@ -136,7 +138,9 @@ def user_modify_password(req: HttpRequest):
         user_name = body["user_name"]
         old_password = body["old_password"]
         new_password = body["new_password"]
-        if not (isinstance(user_name, str) and isinstance(old_password, str) and isinstance(new_password, str)):
+        if not helpers.user_username_checker(user_name):
+            return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
+        if not (isinstance(old_password, str) and isinstance(new_password, str)):
             return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
 
         if not user_name == token["user_name"]:
@@ -144,9 +148,9 @@ def user_modify_password(req: HttpRequest):
 
         user = UserInfo.objects.filter(user_name=user_name).first()
         if not user:  # user name not existed yet.
-            return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
         if not helpers.check_password(old_password, user.password):
-            return request_failed(4, "WRONG_PASSWORD", data={"data": {}})
+            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
         user.password = helpers.hash_password(new_password)
         user.save()
         return request_success(data={"data": {}})
