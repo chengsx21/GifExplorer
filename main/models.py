@@ -4,7 +4,6 @@
 
 from django.db import models
 from django.db.models import DateTimeField
-# from db_file_storage.storage import DatabaseFileStorage
 
 class UserInfo(models.Model):
     '''
