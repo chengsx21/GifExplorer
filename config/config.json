@@ -3,7 +3,7 @@
         "username": "django",
         "password": "GIF_EXPLORER_PASSWORD",
         "database": "django",
-        "hostname": "GIfExplorer-db-Nullptr.app.secoder.local",
+        "hostname": "GIfExplorer-db-Nullptr.app.secoder.net",
         "port": 5432
     }
 }
