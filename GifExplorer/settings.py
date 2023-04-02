@@ -108,15 +108,8 @@ if not DEBUG:
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config["local-db"]['database'],
-            'USER': config["local-db"]['username'],
-            'PASSWORD': config["local-db"]['password'],
-            'HOST': config["local-db"]['hostname'],
-            'PORT': config["local-db"]['port'],
-            'TEST': {
-                'NAME': 'backend_test_db',
-            },
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
 
