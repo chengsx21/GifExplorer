@@ -31,12 +31,12 @@ class UserInfo(models.Model):
         '''
         db_table = "user"
 
-class Gif(models.Model):
+class GifMetadata(models.Model):
     '''
-        model for Gif
+        model for gif metadata
     '''
     id = models.AutoField(primary_key=True)
-    gif_file = models.ImageField(upload_to='gifs/')
+    # gif_file = models.ImageField(upload_to='gifs/')
     name = models.CharField(null=True, blank=True, max_length=200)
     title = models.CharField(max_length=200)
     width = models.PositiveIntegerField(default=0)
@@ -53,4 +53,25 @@ class Gif(models.Model):
         '''
             set table name in db
         '''
-        db_table = "gif"
+        db_table = "gifmetadata"
+
+# class GIFMetadata(models.Model):
+#     title = models.CharField(max_length=100)
+#     description = models.TextField()
+#     tags = models.CharField(max_length=100)
+#     upload_date = models.DateTimeField(auto_now_add=True)
+#     author = models.ForeignKey(UserInfo, on_delete=models.CASCADE)
+
+class GifFile(models.Model):
+    '''
+        model for gif file
+    '''
+    file = models.ImageField(upload_to='gifs/')
+    metadata = models.OneToOneField(GifMetadata, on_delete=models.CASCADE)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "giffile"
