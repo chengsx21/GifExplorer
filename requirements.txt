@@ -4,8 +4,6 @@ django-cors-headers
 # pymysql
 # mysqlclient==2.1.0
 
-psycopg2-binary
-django-db-file-storage
 pytest
 pycodestyle
 pytest

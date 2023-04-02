@@ -4,7 +4,6 @@
 
 from django.db import models
 from django.db.models import DateTimeField
-# from db_file_storage.storage import DatabaseFileStorage
 
 class UserInfo(models.Model):
     '''
@@ -30,14 +29,14 @@ class UserInfo(models.Model):
         '''
             set table name in db
         '''
-        db_table = "user_info"
+        db_table = "user"
 
-class GifMetadata(models.Model):
+class Gif(models.Model):
     '''
-        model for gif metadata
+        model for Gif
     '''
     id = models.AutoField(primary_key=True)
-    # gif_file = models.ImageField(upload_to='gifs/')
+    gif_file = models.ImageField(upload_to='gifs/')
     name = models.CharField(null=True, blank=True, max_length=200)
     title = models.CharField(max_length=200)
     width = models.PositiveIntegerField(default=0)
@@ -54,25 +53,4 @@ class GifMetadata(models.Model):
         '''
             set table name in db
         '''
-        db_table = "gifmetadata"
-
-# class GIFMetadata(models.Model):
-#     title = models.CharField(max_length=100)
-#     description = models.TextField()
-#     tags = models.CharField(max_length=100)
-#     upload_date = models.DateTimeField(auto_now_add=True)
-#     author = models.ForeignKey(UserInfo, on_delete=models.CASCADE)
-
-class GifFile(models.Model):
-    '''
-        model for gif file
-    '''
-    file = models.ImageField(upload_to='gifs')
-    metadata = models.OneToOneField(GifMetadata, on_delete=models.CASCADE)
-    objects = models.Manager()
-
-    class Meta:
-        '''
-            set table name in db
-        '''
-        db_table = "giffile"
+        db_table = "gif"

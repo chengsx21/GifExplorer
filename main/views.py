@@ -1,7 +1,7 @@
 '''
     views.py in django frame work
 '''
-
+import os
 import json
 from wsgiref.util import FileWrapper
 from PIL import Image
@@ -9,7 +9,7 @@ from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from utils.utils_request import NOT_FOUND, UNAUTHORIZED, INTERNAL_ERROR, request_failed, request_success
 from . import helpers
-from .models import UserInfo, GifMetadata, GifFile
+from .models import UserInfo, Gif
 
 
 # Create your views here.
@@ -220,21 +220,16 @@ def image_upload(req: HttpRequest):
         if not user:
             return UNAUTHORIZED
 
-        gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
-        gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
-        gif_file.save()
-
-        with Image.open(gif_file.file) as image:
+        gif = Gif(title=title, uploader=user.id, category=category, tags=tags)
+        gif.gif_file = req.FILES.get("file")
+        gif.save()
+        gif.width = gif.gif_file.width
+        gif.height = gif.gif_file.height
+        gif.name = gif.gif_file.name
+        gif.save()
+        with Image.open(gif.name) as image:
             duration = image.info['duration'] * image.n_frames
         gif.duration = duration / 1000.0
-        gif.save()
-        gif.width = gif_file.file.width
-        gif.height = gif_file.file.height
-        gif.name = gif_file.file.name
-        gif.save()
-        # with Image.open(gif_file.file) as image:
-        #     duration = image.info['duration'] * image.n_frames
-        # gif.duration = duration / 1000.0
         gif.save()
 
         return_data = {
@@ -293,7 +288,7 @@ def image_detail(req: HttpRequest, gif_id: any):
         if not isinstance(gif_id, str) or not gif_id.isdecimal():
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
-        gif = GifMetadata.objects.filter(id=gif_id).first()
+        gif = Gif.objects.filter(id=gif_id).first()
         if not gif:
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
         user = UserInfo.objects.filter(id=gif.uploader).first()
@@ -316,7 +311,7 @@ def image_detail(req: HttpRequest, gif_id: any):
         if not isinstance(gif_id, str) or not gif_id.isdecimal():
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
-        gif = GifMetadata.objects.filter(id=gif_id).first()
+        gif = Gif.objects.filter(id=gif_id).first()
         if not gif:
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
         if gif.uploader != token["id"]:
@@ -337,13 +332,13 @@ def image_preview(req: HttpRequest, gif_id: any):
         if not isinstance(gif_id, str) or not gif_id.isdecimal():
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
-        gif = GifMetadata.objects.filter(id=gif_id).first()
+        gif = Gif.objects.filter(id=gif_id).first()
         if not gif:
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
-        gif_file = open(gif.giffile.file.path, 'rb')
+        gif_file = open(gif.gif_file.path, 'rb')
         file_wrapper = FileWrapper(gif_file)
         response = HttpResponse(file_wrapper, content_type='image/gif')
-        response['Content-Disposition'] = f'inline; filename="{gif.name}"'
+        response['Content-Disposition'] = f'inline; filename="{gif.gif_file.name}"'
         return response
     return NOT_FOUND
 
@@ -359,12 +354,13 @@ def image_download(req: HttpRequest, gif_id: any):
         if not isinstance(gif_id, str) or not gif_id.isdecimal():
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
-        gif = GifMetadata.objects.filter(id=gif_id).first()
+        gif = Gif.objects.filter(id=gif_id).first()
         if not gif:
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
-        gif_file = open(gif.giffile.file.path, 'rb')
+        gif_file = open(gif.gif_file.path, 'rb')
         file_wrapper = FileWrapper(gif_file)
+        file_name = os.path.basename(gif.gif_file.path)
         response = HttpResponse(file_wrapper, content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename="{gif.name}"'
+        response['Content-Disposition'] = 'attachment; filename=' + file_name
         return response
     return NOT_FOUND
