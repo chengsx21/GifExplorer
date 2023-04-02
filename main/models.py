@@ -4,6 +4,7 @@
 
 from django.db import models
 from django.db.models import DateTimeField
+# from db_file_storage.storage import DatabaseFileStorage
 
 class UserInfo(models.Model):
     '''
@@ -29,7 +30,7 @@ class UserInfo(models.Model):
         '''
             set table name in db
         '''
-        db_table = "user"
+        db_table = "user_info"
 
 class GifMetadata(models.Model):
     '''
@@ -66,7 +67,7 @@ class GifFile(models.Model):
     '''
         model for gif file
     '''
-    file = models.ImageField(upload_to='gifs/')
+    file = models.ImageField(upload_to='gifs')
     metadata = models.OneToOneField(GifMetadata, on_delete=models.CASCADE)
     objects = models.Manager()
 

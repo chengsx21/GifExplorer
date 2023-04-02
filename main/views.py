@@ -222,10 +222,11 @@ def image_upload(req: HttpRequest):
 
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
         gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
+        gif_file.save()
+
         with Image.open(gif_file.file) as image:
             duration = image.info['duration'] * image.n_frames
         gif.duration = duration / 1000.0
-        gif_file.save()
         gif.save()
         gif.width = gif_file.file.width
         gif.height = gif_file.file.height
