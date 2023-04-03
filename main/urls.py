@@ -11,8 +11,10 @@ urlpatterns = [
     path('user/login', views.user_login),
     path('user/modifypassword', views.user_modify_password),
     path('user/logout', views.user_logout),
+    path('user/checklogin', views.check_user_login),
     path('image', views.image_upload),
+    path('image/video', views.from_video_to_gif),
     path('image/<gif_id>', views.image_detail),
     path('image/preview/<gif_id>', views.image_preview),
-    path('image/download/<gif_id>', views.image_download)
+    path('image/download/<gif_id>', views.image_download),
 ]

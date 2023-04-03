@@ -1,16 +1,19 @@
 '''
     views.py in django frame work
 '''
-
+import os
 import json
+import imageio
 from wsgiref.util import FileWrapper
 from PIL import Image
+from celery import shared_task
+from moviepy.editor import VideoFileClip
+from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from utils.utils_request import NOT_FOUND, UNAUTHORIZED, INTERNAL_ERROR, request_failed, request_success
 from . import helpers
 from .models import UserInfo, GifMetadata, GifFile
-
 
 # Create your views here.
 @csrf_exempt
@@ -20,7 +23,6 @@ def startup(req: HttpRequest):
     '''
     if req.method == "GET":
         return HttpResponse("Congratulations! Go ahead!")
-
 
 @csrf_exempt
 def user_register(req: HttpRequest):
@@ -66,7 +68,6 @@ def user_register(req: HttpRequest):
             return request_success(return_data)
         return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
     return NOT_FOUND
-
 
 @csrf_exempt
 def user_login(req: HttpRequest):
@@ -176,6 +177,25 @@ def user_logout(req: HttpRequest):
     return INTERNAL_ERROR
 
 @csrf_exempt
+def check_user_login(req: HttpRequest):
+    '''
+    request:
+        None
+    response:
+        Return if user is logged in
+    '''
+    if req.method == "POST":
+        try:
+            token = str(req.META.get("HTTP_AUTHORIZATION"))
+            if helpers.is_token_valid(token=token):
+                return request_success(data={"data": {}})
+            return UNAUTHORIZED
+        except Exception as error:
+            print(error)
+            return UNAUTHORIZED
+    return INTERNAL_ERROR
+
+@csrf_exempt
 def image_upload(req: HttpRequest):
     '''
     request:
@@ -219,7 +239,8 @@ def image_upload(req: HttpRequest):
         user = UserInfo.objects.filter(id=token["id"]).first()
         if not user:
             return UNAUTHORIZED
-
+        
+        # gif not empty is needed
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
         gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
         gif_file.save()
@@ -232,9 +253,6 @@ def image_upload(req: HttpRequest):
         gif.height = gif_file.file.height
         gif.name = gif_file.file.name
         gif.save()
-        # with Image.open(gif_file.file) as image:
-        #     duration = image.info['duration'] * image.n_frames
-        # gif.duration = duration / 1000.0
         gif.save()
 
         return_data = {
@@ -303,6 +321,9 @@ def image_detail(req: HttpRequest, gif_id: any):
                 "title": gif.title,
                 # "url": gif.gif_file.url,
                 "uploader": user.user_name,
+                "width": gif.width,
+                "height": gif.height,
+                "duration": gif.duration,
                 "pub_time": gif.pub_time,
                 "like": gif.likes
             }
@@ -321,6 +342,7 @@ def image_detail(req: HttpRequest, gif_id: any):
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
         if gif.uploader != token["id"]:
             return UNAUTHORIZED
+        os.remove(gif.giffile.file.path)
         gif.delete()
         return request_success(data={"data": {}})
     return NOT_FOUND
@@ -365,6 +387,93 @@ def image_download(req: HttpRequest, gif_id: any):
         gif_file = open(gif.giffile.file.path, 'rb')
         file_wrapper = FileWrapper(gif_file)
         response = HttpResponse(file_wrapper, content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename="{gif.name}"'
+        response['Content-Disposition'] = f'attachment; filename="{gif.title}.gif"'
         return response
     return NOT_FOUND
+
+@csrf_exempt
+def from_video_to_gif(req: HttpRequest):
+    '''
+        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+    '''
+    if req.method == "POST":
+        encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+        token = helpers.decode_token(encoded_token)
+        if not helpers.is_token_valid(token=encoded_token):
+            return UNAUTHORIZED
+        
+        json_data_str = req.POST.get("file_data")
+        body = json.loads(json_data_str)
+        body = json.loads(body)
+        title = body["title"]
+        category = body["category"]
+        tags = body["tags"]
+        if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
+            return request_failed(5, "INVALID_DATA_FORMAT", data={"data": {}})
+        for tag in tags:
+            if not isinstance(tag, str):
+                return request_failed(5, "INVALID_DATA_FORMAT", data={"data": {}})
+        
+        user = UserInfo.objects.filter(id=token["id"]).first()
+        if not user:
+            return UNAUTHORIZED
+
+        video_file = req.FILES.get("file")
+        if not video_file:
+            return request_failed(7, "INVALID_DATA_FORMAT", data={"data": {}})
+
+        with open('TEMP_VIDEO.mp4', 'wb') as f:
+            for chunk in video_file.chunks():
+                f.write(chunk)
+                
+        # from_video_to_gif_task.delay()
+        
+        video = imageio.get_reader('TEMP_VIDEO.mp4')
+        fps = video.get_meta_data()['fps']
+        gif_frames = []
+        for frame in video:
+            gif_frames.append(frame[:, :, :3])
+        imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
+ 
+        gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
+        
+        gif_file = GifFile.objects.create(metadata=gif, file='TEMP_GIF.gif')
+        
+        with open('TEMP_GIF.gif', 'rb') as f:
+            gif_file.file.save(title+'.gif', ContentFile(f.read()))
+        gif_file.save()
+
+        with Image.open(gif_file.file) as image:
+            duration = image.info['duration'] * image.n_frames
+        gif.duration = duration / 1000.0
+        gif.save()
+        gif.width = gif_file.file.width
+        gif.height = gif_file.file.height
+        gif.name = gif_file.file.name
+        gif.save()
+
+        os.remove('TEMP_VIDEO.mp4')
+        os.remove('TEMP_GIF.gif')
+
+        return_data = {
+            "data": {
+                "id": gif.id,
+                "width": gif.width,
+                "height": gif.height,
+                "duration": gif.duration,
+                "uploader": user.id,
+                "pub_time": gif.pub_time
+            }
+        }
+        return request_success(return_data)
+    return INTERNAL_ERROR
+
+# @shared_task
+# def from_video_to_gif_task():
+#     video = imageio.get_reader('TEMP_VIDEO.mp4')
+#     fps = video.get_meta_data()['fps']
+#     gif_frames = []
+#     for frame in video:
+#         gif_frames.append(frame[:, :, :3])
+#     gif = imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
+#     return None

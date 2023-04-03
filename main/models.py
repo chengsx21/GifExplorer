@@ -66,7 +66,7 @@ class GifFile(models.Model):
     '''
         model for gif file
     '''
-    file = models.ImageField(upload_to='gifs')
+    file = models.ImageField(upload_to='gifs/')
     metadata = models.OneToOneField(GifMetadata, on_delete=models.CASCADE)
     objects = models.Manager()
 
