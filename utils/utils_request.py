@@ -38,10 +38,10 @@ def return_field(obj_dict, field_list):
         if k in field_list
     }
 
-BAD_METHOD = request_failed(-3, "Bad method", 405, {"data": {}})
-
 NOT_FOUND = request_failed(1000, "NOT_FOUND", 404, {"data": {}})
 
 UNAUTHORIZED = request_failed(1001, "UNAUTHORIZED", 401, {"data": {}})
 
 INTERNAL_ERROR = request_failed(1003, "INTERNAL_ERROR", 500, {"data": {}})
+
+INVALID_FORMAT = request_failed(1005, "INTERNAL_ERROR", 400, {"data": {}})

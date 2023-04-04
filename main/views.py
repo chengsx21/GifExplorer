@@ -11,8 +11,9 @@ from moviepy.editor import VideoFileClip
 from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from utils.utils_request import NOT_FOUND, UNAUTHORIZED, INTERNAL_ERROR, request_failed, request_success
+from utils.utils_request import NOT_FOUND, UNAUTHORIZED, INTERNAL_ERROR, INVALID_FORMAT, request_failed, request_success
 from . import helpers
+from . import config
 from .models import UserInfo, GifMetadata, GifFile
 
 # Create your views here.
@@ -231,10 +232,10 @@ def image_upload(req: HttpRequest):
         category = body["category"]
         tags = body["tags"]
         if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
-            return request_failed(5, "INVALID_DATA_FORMAT", data={"data": {}})
+            return INVALID_FORMAT
         for tag in tags:
             if not isinstance(tag, str):
-                return request_failed(5, "INVALID_DATA_FORMAT", data={"data": {}})
+                return INVALID_FORMAT
 
         user = UserInfo.objects.filter(id=token["id"]).first()
         if not user:
@@ -409,10 +410,10 @@ def from_video_to_gif(req: HttpRequest):
         category = body["category"]
         tags = body["tags"]
         if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
-            return request_failed(5, "INVALID_DATA_FORMAT", data={"data": {}})
+            return INVALID_FORMAT
         for tag in tags:
             if not isinstance(tag, str):
-                return request_failed(5, "INVALID_DATA_FORMAT", data={"data": {}})
+                return INVALID_FORMAT
         
         user = UserInfo.objects.filter(id=token["id"]).first()
         if not user:
@@ -477,3 +478,71 @@ def from_video_to_gif(req: HttpRequest):
 #         gif_frames.append(frame[:, :, :3])
 #     gif = imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
 #     return None
+
+@csrf_exempt
+def image_allgifs(req: HttpRequest):
+    '''
+    request:
+        {
+            "category": "sports"
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": [
+                {
+                    "id": 514,
+                    "title": "Wonderful Gif",
+                    "category": "sports",
+                    "gif_url": "https://wonderful-gif/apple.gif",
+                    "uploader": "AliceBurn", 
+                    "pub_time": "2023-03-21T19:02:16.305Z",
+                },
+                {
+                    "id": 519,
+                    "title": "Strong Man",
+                    "category": "sports",
+                    "gif_url": "https://wonderful-gif/strong-man.gif",
+                    "uploader": "AliceBurn", 
+                    "pub_time": "2023-03-21T19:02:16.305Z",
+                }
+            ]
+        }
+    '''
+    if req.method == "GET":
+        body = json.loads(req.body.decode("utf-8"))
+        req_category = body["category"]
+        if not isinstance(req_category, str):
+            return INVALID_FORMAT
+
+        if req_category in config.CATEGORY_LIST:
+            category = config.CATEGORY_LIST[req_category]
+        else:
+            category = config.CATEGORY_LIST[""]
+        
+        # user = UserInfo.objects.filter(user_name=user_name).first()
+        # if not user:  # user name not existed yet.
+        #     return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+        
+        gifs = GifMetadata.objects.filter(category=category)
+        if not gifs:
+            return request_success(data={})
+        
+        gifs_list = []
+        for gif in gifs:
+            user = UserInfo.objects.filter(id=gif.uploader).first()
+            gif_dict = {
+                "id": gif.id,
+                "title": gif.title,
+                "category": gif.category,
+                # "gif_url": gif.file.url,
+                "uploader": user.user_name,
+                "pub_time": gif.pub_time
+            }
+            gifs_list.append(gif_dict)
+        return_data = {
+            "data": gifs_list
+        }
+        return request_success(return_data)    
+    return NOT_FOUND
