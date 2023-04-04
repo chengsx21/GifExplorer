@@ -3,15 +3,14 @@
 '''
 import os
 import json
-import imageio
 from wsgiref.util import FileWrapper
+import imageio
 from PIL import Image
-from celery import shared_task
-from moviepy.editor import VideoFileClip
+# from celery import shared_task
 from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from utils.utils_request import NOT_FOUND, UNAUTHORIZED, INTERNAL_ERROR, INVALID_FORMAT, request_failed, request_success
+from utils.utils_request import not_found_error, unauthorized_error, internal_error, format_error, request_failed, request_success
 from . import helpers
 from . import config
 from .models import UserInfo, GifMetadata, GifFile
@@ -29,135 +28,179 @@ def startup(req: HttpRequest):
 def user_register(req: HttpRequest):
     '''
     request:
-    {
-        "user_name": "Alice",
-        "password": "Happy-Day1"
-    }
-    response:
-    {
-        "code": 0,
-        "message": "SUCCESS",
-        "data": {
-            "id": 1,
+        {
             "user_name": "Alice",
-            "token": "SECRET_TOKEN"
+            "password": "Happy-Day1"
         }
-    }
-    '''
-    if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-        user_name = body["user_name"]
-        password = body["password"]
-        if not helpers.user_username_checker(user_name):
-            return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
-        if not isinstance(password, str):
-            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
-
-        user = UserInfo.objects.filter(user_name=user_name).first()
-        if not user:
-            user = UserInfo(user_name=user_name, password=helpers.hash_password(password))
-            user.save()
-            user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
-            return_data = {
-                "data": {
-                    "id": user.id,
-                    "user_name": user_name,
-                    "token": user_token
-                }
+    response:
+        {
+            "code": 0,
+            "message": "SUCCESS",
+            "data": {
+                "id": 1,
+                "user_name": "Alice",
+                "token": "SECRET_TOKEN"
             }
-            helpers.add_token_to_white_list(user_token)
-            return request_success(return_data)
-        return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
-    return NOT_FOUND
+        }
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                body = json.loads(req.body.decode("utf-8"))
+                user_name = body["user_name"]
+                password = body["password"]
+            except Exception as error:
+                print(error)
+                return internal_error(error=str(error))
+
+            if not helpers.user_username_checker(user_name):
+                return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
+            if not isinstance(password, str):
+                return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
+
+            try:
+                user = UserInfo.objects.filter(user_name=user_name).first()
+                if not user:
+                    user = UserInfo(user_name=user_name, password=helpers.hash_password(password))
+                    user.save()
+                    user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
+                    return_data = {
+                        "data": {
+                            "id": user.id,
+                            "user_name": user_name,
+                            "token": user_token
+                        }
+                    }
+                    helpers.add_token_to_white_list(user_token)
+                    return request_success(return_data)
+                return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def user_login(req: HttpRequest):
     '''
     request:
-    {
-        "user_name": "FirstUser",
-        "password": "Hashed-Word"
-    }
-    response:
-    {
-        "code": 0,
-        "info": "SUCCESS",
-        "data": {
-            "id": 1,
+        {
             "user_name": "FirstUser",
-            "token": "SECRET_TOKEN"
+            "password": "Hashed-Word"
         }
-    }
-    '''
-    if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-        user_name = body["user_name"]
-        password = body["password"]
-        if not helpers.user_username_checker(user_name):
-            return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
-        if not isinstance(password, str):
-            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
-
-        user = UserInfo.objects.filter(user_name=user_name).first()
-        if not user:  # user name not existed yet.
-            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
-        if helpers.check_password(password, user.password):
-            user_token = helpers.create_token(user_id=user.id, user_name=user.user_name)
-            return_data = {
-                "data": {
-                    "id": user.id,
-                    "user_name": user_name,
-                    "token": user_token
-                }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "id": 1,
+                "user_name": "FirstUser",
+                "token": "SECRET_TOKEN"
             }
-            helpers.add_token_to_white_list(user_token)
-            return request_success(return_data)
-        return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
-    return NOT_FOUND
+        }
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                body = json.loads(req.body.decode("utf-8"))
+                user_name = body["user_name"]
+                password = body["password"]
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+            if not helpers.user_username_checker(user_name):
+                return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
+            if not isinstance(password, str):
+                return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
+
+            try:
+                user = UserInfo.objects.filter(user_name=user_name).first()
+                if not user:  # user name not existed yet.
+                    return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+                if helpers.check_password(password, user.password):
+                    user_token = helpers.create_token(user_id=user.id, user_name=user.user_name)
+                    return_data = {
+                        "data": {
+                            "id": user.id,
+                            "user_name": user_name,
+                            "token": user_token
+                        }
+                    }
+                    helpers.add_token_to_white_list(user_token)
+                    return request_success(return_data)
+                return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def user_modify_password(req: HttpRequest):
     '''
     request:
-    {
-        "user_name": "Alice",
-        "old_password": "Bob19937",
-        "new_password": "Carol48271"
-    }
+        {
+            "user_name": "Alice",
+            "old_password": "Bob19937",
+            "new_password": "Carol48271"
+        }
     response:
-    {
-        "code": 0,
-        "info": "SUCCESS",
-        "data": {}
-    }
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {}
+        }
     '''
-    if req.method == "POST":
-        encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-        token = helpers.decode_token(encoded_token)
-        if not helpers.is_token_valid(token=encoded_token):
-            return UNAUTHORIZED
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            except Exception as error:
+                print(error)
+                return unauthorized_error(error=str(error))
+            try:
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+            try:
+                body = json.loads(req.body.decode("utf-8"))
+                user_name = body["user_name"]
+                old_password = body["old_password"]
+                new_password = body["new_password"]
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
 
-        body = json.loads(req.body.decode("utf-8"))
-        user_name = body["user_name"]
-        old_password = body["old_password"]
-        new_password = body["new_password"]
-        if not helpers.user_username_checker(user_name):
-            return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
-        if not (isinstance(old_password, str) and isinstance(new_password, str)):
-            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
+            if not helpers.user_username_checker(user_name):
+                return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
+            if not (isinstance(old_password, str) and isinstance(new_password, str)):
+                return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
+            if not user_name == token["user_name"]:
+                return unauthorized_error()
 
-        if not user_name == token["user_name"]:
-            return UNAUTHORIZED
-
-        user = UserInfo.objects.filter(user_name=user_name).first()
-        if not user:  # user name not existed yet.
-            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
-        if not helpers.check_password(old_password, user.password):
-            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
-        user.password = helpers.hash_password(new_password)
-        user.save()
-        return request_success(data={"data": {}})
-    return INTERNAL_ERROR
+            try:
+                user = UserInfo.objects.filter(user_name=user_name).first()
+                if not user:  # user name not existed yet.
+                    return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+                if not helpers.check_password(old_password, user.password):
+                    return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+                user.password = helpers.hash_password(new_password)
+                user.save()
+                return request_success(data={"data": {}})
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def user_logout(req: HttpRequest):
@@ -167,15 +210,26 @@ def user_logout(req: HttpRequest):
     response:
         nothing
     '''
-    if req.method == "POST":
-        encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-        if helpers.is_token_valid(token=encoded_token):
-            helpers.delete_token_from_white_list(token=encoded_token)
-            if not helpers.is_token_valid(token=encoded_token):
-                return request_success(data={"data": {}})
-            return INTERNAL_ERROR
-        return UNAUTHORIZED
-    return INTERNAL_ERROR
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            except Exception as error:
+                print(error)
+                return unauthorized_error()
+            try:
+                if helpers.is_token_valid(token=encoded_token):
+                    helpers.delete_token_from_white_list(token=encoded_token)
+                    if not helpers.is_token_valid(token=encoded_token):
+                        return request_success(data={"data": {}})
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+            return unauthorized_error()
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def check_user_login(req: HttpRequest):
@@ -185,16 +239,24 @@ def check_user_login(req: HttpRequest):
     response:
         Return if user is logged in
     '''
-    if req.method == "POST":
-        try:
-            token = str(req.META.get("HTTP_AUTHORIZATION"))
-            if helpers.is_token_valid(token=token):
-                return request_success(data={"data": {}})
-            return UNAUTHORIZED
-        except Exception as error:
-            print(error)
-            return UNAUTHORIZED
-    return INTERNAL_ERROR
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            except Exception as error:
+                print(error)
+                return unauthorized_error()
+            try:
+                if helpers.is_token_valid(token=encoded_token):
+                    return request_success(data={"data": {}})
+                return unauthorized_error()
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def image_upload(req: HttpRequest):
@@ -224,7 +286,7 @@ def image_upload(req: HttpRequest):
         encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
         token = helpers.decode_token(encoded_token)
         if not helpers.is_token_valid(token=encoded_token):
-            return UNAUTHORIZED
+            return unauthorized_error()
         json_data_str = req.POST.get("file_data")
         body = json.loads(json_data_str)
         body = json.loads(body)
@@ -232,15 +294,15 @@ def image_upload(req: HttpRequest):
         category = body["category"]
         tags = body["tags"]
         if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
-            return INVALID_FORMAT
+            return format_error()
         for tag in tags:
             if not isinstance(tag, str):
-                return INVALID_FORMAT
+                return format_error()
 
         user = UserInfo.objects.filter(id=token["id"]).first()
         if not user:
-            return UNAUTHORIZED
-        
+            return unauthorized_error()
+
         # gif not empty is needed
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
         gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
@@ -267,7 +329,7 @@ def image_upload(req: HttpRequest):
             }
         }
         return request_success(return_data)
-    return INTERNAL_ERROR
+    return internal_error(error="")
 
 @csrf_exempt
 def image_detail(req: HttpRequest, gif_id: any):
@@ -333,7 +395,7 @@ def image_detail(req: HttpRequest, gif_id: any):
         encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
         token = helpers.decode_token(encoded_token)
         if not helpers.is_token_valid(token=encoded_token):
-            return UNAUTHORIZED
+            return unauthorized_error()
 
         if not isinstance(gif_id, str) or not gif_id.isdecimal():
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
@@ -342,11 +404,11 @@ def image_detail(req: HttpRequest, gif_id: any):
         if not gif:
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
         if gif.uploader != token["id"]:
-            return UNAUTHORIZED
+            return unauthorized_error()
         os.remove(gif.giffile.file.path)
         gif.delete()
         return request_success(data={"data": {}})
-    return NOT_FOUND
+    return not_found_error()
 
 @csrf_exempt
 def image_preview(req: HttpRequest, gif_id: any):
@@ -368,7 +430,7 @@ def image_preview(req: HttpRequest, gif_id: any):
         response = HttpResponse(file_wrapper, content_type='image/gif')
         response['Content-Disposition'] = f'inline; filename="{gif.name}"'
         return response
-    return NOT_FOUND
+    return not_found_error()
 
 @csrf_exempt
 def image_download(req: HttpRequest, gif_id: any):
@@ -390,7 +452,7 @@ def image_download(req: HttpRequest, gif_id: any):
         response = HttpResponse(file_wrapper, content_type='application/octet-stream')
         response['Content-Disposition'] = f'attachment; filename="{gif.title}.gif"'
         return response
-    return NOT_FOUND
+    return not_found_error()
 
 @csrf_exempt
 def from_video_to_gif(req: HttpRequest):
@@ -401,8 +463,8 @@ def from_video_to_gif(req: HttpRequest):
         encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
         token = helpers.decode_token(encoded_token)
         if not helpers.is_token_valid(token=encoded_token):
-            return UNAUTHORIZED
-        
+            return unauthorized_error()
+
         json_data_str = req.POST.get("file_data")
         body = json.loads(json_data_str)
         body = json.loads(body)
@@ -410,38 +472,37 @@ def from_video_to_gif(req: HttpRequest):
         category = body["category"]
         tags = body["tags"]
         if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
-            return INVALID_FORMAT
+            return format_error()
         for tag in tags:
             if not isinstance(tag, str):
-                return INVALID_FORMAT
-        
+                return format_error()
+
         user = UserInfo.objects.filter(id=token["id"]).first()
         if not user:
-            return UNAUTHORIZED
+            return unauthorized_error()
 
         video_file = req.FILES.get("file")
         if not video_file:
             return request_failed(7, "INVALID_DATA_FORMAT", data={"data": {}})
 
-        with open('TEMP_VIDEO.mp4', 'wb') as f:
+        with open('TEMP_VIDEO.mp4', 'wb') as temp_video:
             for chunk in video_file.chunks():
-                f.write(chunk)
-                
+                temp_video.write(chunk)
+
         # from_video_to_gif_task.delay()
-        
+
         video = imageio.get_reader('TEMP_VIDEO.mp4')
         fps = video.get_meta_data()['fps']
         gif_frames = []
         for frame in video:
             gif_frames.append(frame[:, :, :3])
         imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
- 
+
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
-        
         gif_file = GifFile.objects.create(metadata=gif, file='TEMP_GIF.gif')
-        
-        with open('TEMP_GIF.gif', 'rb') as f:
-            gif_file.file.save(title+'.gif', ContentFile(f.read()))
+
+        with open('TEMP_GIF.gif', 'rb') as temp_gif:
+            gif_file.file.save(title+'.gif', ContentFile(temp_gif.read()))
         gif_file.save()
 
         with Image.open(gif_file.file) as image:
@@ -467,7 +528,7 @@ def from_video_to_gif(req: HttpRequest):
             }
         }
         return request_success(return_data)
-    return INTERNAL_ERROR
+    return internal_error(error="")
 
 # @shared_task
 # def from_video_to_gif_task():
@@ -514,21 +575,21 @@ def image_allgifs(req: HttpRequest):
         body = json.loads(req.body.decode("utf-8"))
         req_category = body["category"]
         if not isinstance(req_category, str):
-            return INVALID_FORMAT
+            return format_error()
 
         if req_category in config.CATEGORY_LIST:
             category = config.CATEGORY_LIST[req_category]
         else:
             category = config.CATEGORY_LIST[""]
-        
+
         # user = UserInfo.objects.filter(user_name=user_name).first()
         # if not user:  # user name not existed yet.
         #     return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
-        
+
         gifs = GifMetadata.objects.filter(category=category)
         if not gifs:
             return request_success(data={})
-        
+
         gifs_list = []
         for gif in gifs:
             user = UserInfo.objects.filter(id=gif.uploader).first()
@@ -544,5 +605,5 @@ def image_allgifs(req: HttpRequest):
         return_data = {
             "data": gifs_list
         }
-        return request_success(return_data)    
-    return NOT_FOUND
+        return request_success(return_data)
+    return not_found_error()

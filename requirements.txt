@@ -4,7 +4,7 @@ django-cors-headers
 # pymysql
 # mysqlclient==2.1.0
 
-moviepy
+imageio
 celery
 psycopg2-binary
 pytest

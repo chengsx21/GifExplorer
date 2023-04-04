@@ -7,6 +7,7 @@ CATEGORY_LIST = {
     "home": "",
     "sport": "sports",
     "fashion": "fashion",
+    "animal": "animal",
     "emoji": "emoji",
     "sports": "sports",
     "politics": "politics",
