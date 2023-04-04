@@ -8,6 +8,6 @@ uwsgi --module=GifExplorer.wsgi:application \
     --master \
     --http=0.0.0.0:80 \
     --processes=5 \
-    --harakiri=20 \
+    --harakiri=40 \
     --max-requests=5000 \
     --vacuum
