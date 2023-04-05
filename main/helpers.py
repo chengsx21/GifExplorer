@@ -3,11 +3,15 @@
 '''
 import hashlib
 import re
+import imagehash
+from PIL import Image
 import jwt
 
 SECRET_KEY = "Welcome to the god damned SE world!"
 
 USER_WHITE_LIST = {}
+
+GIF_HASH_LIST = []
 
 def is_english(char: str):
     '''
@@ -106,3 +110,19 @@ def delete_token_from_white_list(token):
             USER_WHITE_LIST[user_id].remove(token)
         return True
     return False
+
+def add_gif_fingerprint_to_list(fingerprint):
+    '''
+        Calculate gif fingerprint
+    '''
+    if str(fingerprint) not in GIF_HASH_LIST:
+        GIF_HASH_LIST.append(str(fingerprint))
+        return True
+    return False
+
+def delete_gif_fingerprint_from_list(fingerprint):
+    '''
+        Delete gif fingerprint
+    '''
+    if str(fingerprint) in GIF_HASH_LIST:
+        GIF_HASH_LIST.remove(str(fingerprint))
