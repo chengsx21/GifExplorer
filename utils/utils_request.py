@@ -42,7 +42,7 @@ def not_found_error(error="not found error"):
     '''
         define not found error response
     '''
-    return request_failed(1000, "NOT_FOUND", 400, {"data": {"error": error}})
+    return request_failed(1000, "NOT_FOUND", 404, {"data": {"error": error}})
 
 def unauthorized_error(error="format error"):
     '''
