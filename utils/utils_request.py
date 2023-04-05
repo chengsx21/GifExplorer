@@ -38,10 +38,26 @@ def return_field(obj_dict, field_list):
         if k in field_list
     }
 
-BAD_METHOD = request_failed(-3, "Bad method", 405, {"data": {}})
+def not_found_error(error="not found error"):
+    '''
+        define not found error response
+    '''
+    return request_failed(1000, "NOT_FOUND", 404, {"data": {"error": error}})
 
-NOT_FOUND = request_failed(1000, "NOT_FOUND", 404, {"data": {}})
+def unauthorized_error(error="format error"):
+    '''
+        define unauthorized error response
+    '''
+    return request_failed(1001, "UNAUTHORIZED", 401, {"data": {"error": error}})
 
-UNAUTHORIZED = request_failed(1001, "UNAUTHORIZED", 401, {"data": {}})
+def internal_error(error="internal error"):
+    '''
+        define internal error response
+    '''
+    return request_failed(1003, "INTERNAL_ERROR", 500, {"data": {"error": error}})
 
-INTERNAL_ERROR = request_failed(1003, "INTERNAL_ERROR", 500, {"data": {}})
+def format_error(error="format error"):
+    '''
+        define format error response
+    '''
+    return request_failed(1005, "INVALID_FORMAT", 400, {"data": {"error": error}})
