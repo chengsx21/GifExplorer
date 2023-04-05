@@ -4,7 +4,9 @@
 import os
 import json
 from wsgiref.util import FileWrapper
+import io
 import imageio
+import imagehash
 from PIL import Image
 # from celery import shared_task
 from django.core.files.base import ContentFile
@@ -296,12 +298,29 @@ def image_upload(req: HttpRequest):
             except Exception as error:
                 print(error)
                 return internal_error(str(error))
-            json_data_str = req.POST.get("file_data")
-            body = json.loads(json_data_str)
-            body = json.loads(body)
-            title = body["title"]
-            category = body["category"]
-            tags = body["tags"]
+
+            try:
+                file_contents = req.FILES.get("file").read()
+                file_obj = io.BytesIO(file_contents)
+                image = Image.open(file_obj)
+
+                gif_fingerprint = imagehash.average_hash(image, hash_size=16)
+                if not helpers.add_gif_fingerprint_to_list(gif_fingerprint):
+                    return request_success(data={"data": {}})
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
+            
+            try:            
+                json_data_str = req.POST.get("file_data")
+                body = json.loads(json_data_str)
+                body = json.loads(body)
+                title = body["title"]
+                category = body["category"]
+                tags = body["tags"]
+            except Exception as error:
+                print(error)
+                return internal_error(str(error))
             if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
                 return format_error()
             for tag in tags:
@@ -360,6 +379,9 @@ def image_detail(req: HttpRequest, gif_id: any):
                 "title": "Wonderful Gif",
                 "url": "https://wonderful-gif/apple.gif",
                 "uploader": "AliceBurn", 
+                "width": gif.width,
+                "height": gif.height,
+                "duration": gif.duration,
                 "pub_time": "2023-03-21T19:02:16.305Z",
                 "like": 114514
             }
@@ -433,6 +455,13 @@ def image_detail(req: HttpRequest, gif_id: any):
                     return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
                 if gif.uploader != token["id"]:
                     return unauthorized_error()
+            
+                file_contents = gif.giffile.file.read()
+                file_obj = io.BytesIO(file_contents)
+                image = Image.open(file_obj)
+                gif_fingerprint = imagehash.average_hash(image, hash_size=16)
+                helpers.delete_gif_fingerprint_from_list(gif_fingerprint)
+        
                 os.remove(gif.giffile.file.path)
                 gif.delete()
                 return request_success(data={"data": {}})
@@ -668,7 +697,7 @@ def image_allgifs(req: HttpRequest):
                 category = config.CATEGORY_LIST[""]
 
             try:
-                gifs = GifMetadata.objects.filter(category=category)
+                gifs = GifMetadata.objects.filter(category=category).order_by('-pub_time')[:200]
                 if not gifs:
                     return request_success(data={})
                 gifs_list = []
