@@ -520,7 +520,7 @@ def from_video_to_gif(req: HttpRequest):
                     temp_video.write(chunk)
             # from_video_to_gif_task.delay()
 
-            video = imageio.get_reader('TEMP_VIDEO.mp4')
+            video = imageio.get_reader('TEMP_VIDEO.mp4', 'ffmpeg')
             fps = video.get_meta_data()['fps']
             gif_frames = []
             for frame in video:
