@@ -15,7 +15,6 @@ pylint
 pytest-django
 coverage
 pyJWT
-FFmpeg
 
 uWSGI
 

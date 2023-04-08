@@ -55,13 +55,6 @@ class GifMetadata(models.Model):
         '''
         db_table = "gifmetadata"
 
-# class GIFMetadata(models.Model):
-#     title = models.CharField(max_length=100)
-#     description = models.TextField()
-#     tags = models.CharField(max_length=100)
-#     upload_date = models.DateTimeField(auto_now_add=True)
-#     author = models.ForeignKey(UserInfo, on_delete=models.CASCADE)
-
 class GifFile(models.Model):
     '''
         model for gif file
