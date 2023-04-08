@@ -272,20 +272,10 @@ def image_upload(req: HttpRequest):
                 print(error)
                 return unauthorized_error(str(error))
 
-            file_contents = req.FILES.get("file").read()
-            file_obj = io.BytesIO(file_contents)
-            image = Image.open(file_obj)
-            gif_fingerprint = imagehash.average_hash(image, hash_size=16)
-            if not helpers.add_gif_fingerprint_to_list(gif_fingerprint):
-                return request_success(data={"data": {}})
-
             try:
-                json_data_str = req.POST.get("file_data")
-                body = json.loads(json_data_str)
-                body = json.loads(body)
-                title = body["title"]
-                category = body["category"]
-                tags = body["tags"]
+                title = req.POST.get("title")
+                category = req.POST.get("category")
+                tags = req.POST.getlist("tags")
             except (TypeError, KeyError) as error:
                 print(error)
                 return format_error(str(error))
@@ -299,6 +289,13 @@ def image_upload(req: HttpRequest):
             user = UserInfo.objects.filter(id=token["id"]).first()
             if not user:
                 return unauthorized_error()
+
+            file_contents = req.FILES.get("file").read()
+            file_obj = io.BytesIO(file_contents)
+            image = Image.open(file_obj)
+            gif_fingerprint = imagehash.average_hash(image, hash_size=16)
+            if not helpers.add_gif_fingerprint_to_list(gif_fingerprint):
+                return request_success(data={"data": {}})
 
             # gif not empty is needed
             gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
