@@ -2,6 +2,12 @@
     configure for the app
 '''
 
+USER_WHITE_LIST = {}
+
+GIF_HASH_LIST = []
+
+SECRET_KEY = "Welcome to the god damned SE world!"
+
 CATEGORY_LIST = {
     "": "",
     "home": "",

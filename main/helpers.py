@@ -6,12 +6,7 @@ import re
 import imagehash
 from PIL import Image
 import jwt
-
-SECRET_KEY = "Welcome to the god damned SE world!"
-
-USER_WHITE_LIST = {}
-
-GIF_HASH_LIST = []
+from .config import *
 
 def is_english(char: str):
     '''
