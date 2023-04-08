@@ -44,7 +44,7 @@ def not_found_error(error="not found error"):
     '''
     return request_failed(1000, "NOT_FOUND", 404, {"data": {"error": error}})
 
-def unauthorized_error(error="format error"):
+def unauthorized_error(error="unauthorized error"):
     '''
         define unauthorized error response
     '''
