@@ -99,28 +99,28 @@ def user_salt(req: HttpRequest):
             }
         }
     '''
-    # try:
-    if req.method == "POST":
-        try:
-            body = json.loads(req.body.decode("utf-8"))
-            user_name = body["user_name"]
-        except (TypeError, KeyError) as error:
-            print(error)
-            return format_error(str(error))
+    try:
+        if req.method == "POST":
+            try:
+                body = json.loads(req.body.decode("utf-8"))
+                user_name = body["user_name"]
+            except (TypeError, KeyError) as error:
+                print(error)
+                return format_error(str(error))
 
-        user = UserInfo.objects.filter(user_name=user_name).first()
-        if not user:
-            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
-        return_data = {
-            "data": {
-                "salt": user.salt
+            user = UserInfo.objects.filter(user_name=user_name).first()
+            if not user:
+                return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+            return_data = {
+                "data": {
+                    "salt": user.salt
+                }
             }
-        }
-        return request_success(return_data)
-    return not_found_error()
-    # except Exception as error:
-    #     print(error)
-    #     return internal_error(str(error))
+            return request_success(return_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def user_login(req: HttpRequest):
@@ -321,7 +321,7 @@ def image_upload(req: HttpRequest):
                 print(error)
                 return format_error(str(error))
 
-            if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
+            if not (title and category and tags and isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
                 return format_error()
             for tag in tags:
                 if not isinstance(tag, str):
@@ -372,7 +372,7 @@ def image_detail(req: HttpRequest, gif_id: any):
     '''
     GET:
     request:
-        Node
+        None
     response:
         {
             "code": 0,
@@ -641,7 +641,7 @@ def image_allgifs(req: HttpRequest):
         }
     '''
     try:
-        if req.method == "GET":
+        if req.method == "POST":
             try:
                 body = json.loads(req.body.decode("utf-8"))
                 req_category = body["category"]
