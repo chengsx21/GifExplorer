@@ -33,7 +33,8 @@ def user_register(req: HttpRequest):
     request:
         {
             "user_name": "Alice",
-            "password": "Happy-Day1"
+            "password": "Happy-Day1",
+            "salt": "secret_salt"
         }
     response:
         {
@@ -52,6 +53,7 @@ def user_register(req: HttpRequest):
                 body = json.loads(req.body.decode("utf-8"))
                 user_name = body["user_name"]
                 password = body["password"]
+                salt = body["salt"]
             except (TypeError, KeyError) as error:
                 print(error)
                 return format_error(str(error))
@@ -63,7 +65,7 @@ def user_register(req: HttpRequest):
 
             user = UserInfo.objects.filter(user_name=user_name).first()
             if not user:
-                user = UserInfo(user_name=user_name, password=helpers.hash_password(password))
+                user = UserInfo(user_name=user_name, password=helpers.hash_password(password), salt=salt)
                 user.save()
                 user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
                 return_data = {
@@ -80,6 +82,45 @@ def user_register(req: HttpRequest):
     except Exception as error:
         print(error)
         return internal_error(str(error))
+
+@csrf_exempt
+def user_salt(req: HttpRequest):
+    '''
+    request:
+        {
+            "user_name": "FirstUser",
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "salt": "SECRET_SALT"
+            }
+        }
+    '''
+    # try:
+    if req.method == "POST":
+        try:
+            body = json.loads(req.body.decode("utf-8"))
+            user_name = body["user_name"]
+        except (TypeError, KeyError) as error:
+            print(error)
+            return format_error(str(error))
+
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+        return_data = {
+            "data": {
+                "salt": user.salt
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+    # except Exception as error:
+    #     print(error)
+    #     return internal_error(str(error))
 
 @csrf_exempt
 def user_login(req: HttpRequest):
