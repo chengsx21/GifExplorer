@@ -12,7 +12,8 @@ class UserInfo(models.Model):
     id = models.BigAutoField(primary_key=True)
     tags = models.JSONField(null=True, blank=True, default=dict)
     user_name = models.CharField(max_length=12, unique=True)
-    password = models.CharField(max_length=40)
+    password = models.CharField(max_length=80)
+    salt = models.CharField(max_length=40)
     signature = models.CharField(max_length=200, blank=True)
     mail = models.CharField(max_length=100, blank=True)
     register_time = DateTimeField(auto_now_add=True)
@@ -54,13 +55,6 @@ class GifMetadata(models.Model):
             set table name in db
         '''
         db_table = "gifmetadata"
-
-# class GIFMetadata(models.Model):
-#     title = models.CharField(max_length=100)
-#     description = models.TextField()
-#     tags = models.CharField(max_length=100)
-#     upload_date = models.DateTimeField(auto_now_add=True)
-#     author = models.ForeignKey(UserInfo, on_delete=models.CASCADE)
 
 class GifFile(models.Model):
     '''

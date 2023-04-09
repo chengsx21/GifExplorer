@@ -33,7 +33,8 @@ def user_register(req: HttpRequest):
     request:
         {
             "user_name": "Alice",
-            "password": "Happy-Day1"
+            "password": "Happy-Day1",
+            "salt": "secret_salt"
         }
     response:
         {
@@ -52,6 +53,7 @@ def user_register(req: HttpRequest):
                 body = json.loads(req.body.decode("utf-8"))
                 user_name = body["user_name"]
                 password = body["password"]
+                salt = body["salt"]
             except (TypeError, KeyError) as error:
                 print(error)
                 return format_error(str(error))
@@ -63,7 +65,7 @@ def user_register(req: HttpRequest):
 
             user = UserInfo.objects.filter(user_name=user_name).first()
             if not user:
-                user = UserInfo(user_name=user_name, password=helpers.hash_password(password))
+                user = UserInfo(user_name=user_name, password=helpers.hash_password(password), salt=salt)
                 user.save()
                 user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
                 return_data = {
@@ -76,6 +78,45 @@ def user_register(req: HttpRequest):
                 helpers.add_token_to_white_list(user_token)
                 return request_success(return_data)
             return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def user_salt(req: HttpRequest):
+    '''
+    request:
+        {
+            "user_name": "FirstUser",
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "salt": "SECRET_SALT"
+            }
+        }
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                body = json.loads(req.body.decode("utf-8"))
+                user_name = body["user_name"]
+            except (TypeError, KeyError) as error:
+                print(error)
+                return format_error(str(error))
+
+            user = UserInfo.objects.filter(user_name=user_name).first()
+            if not user:
+                return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+            return_data = {
+                "data": {
+                    "salt": user.salt
+                }
+            }
+            return request_success(return_data)
         return not_found_error()
     except Exception as error:
         print(error)
@@ -280,7 +321,7 @@ def image_upload(req: HttpRequest):
                 print(error)
                 return format_error(str(error))
 
-            if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
+            if not (title and category and tags and isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
                 return format_error()
             for tag in tags:
                 if not isinstance(tag, str):
@@ -331,7 +372,7 @@ def image_detail(req: HttpRequest, gif_id: any):
     '''
     GET:
     request:
-        Node
+        None
     response:
         {
             "code": 0,
@@ -474,92 +515,89 @@ def image_download(req: HttpRequest, gif_id: any):
         print(error)
         return internal_error(str(error))
 
-@csrf_exempt
-def from_video_to_gif(req: HttpRequest):
-    '''
-        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
-    '''
-    try:
-        if req.method == "POST":
-            try:
-                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-                token = helpers.decode_token(encoded_token)
-                if not helpers.is_token_valid(token=encoded_token):
-                    return unauthorized_error()
-            except DecodeError as error:
-                print(error)
-                return unauthorized_error(str(error))
+# @csrf_exempt
+# def from_video_to_gif(req: HttpRequest):
+#     '''
+#         支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+#     '''
+#     try:
+#         if req.method == "POST":
+#             try:
+#                 encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+#                 token = helpers.decode_token(encoded_token)
+#                 if not helpers.is_token_valid(token=encoded_token):
+#                     return unauthorized_error()
+#             except DecodeError as error:
+#                 print(error)
+#                 return unauthorized_error(str(error))
 
-            try:
-                json_data_str = req.POST.get("file_data")
-                body = json.loads(json_data_str)
-                body = json.loads(body)
-                title = body["title"]
-                category = body["category"]
-                tags = body["tags"]
-                name = req.FILES.get("file").name.rsplit(".", 1)[0]
-            except (TypeError, KeyError) as error:
-                print(error)
-                return format_error(str(error))
+#             try:
+#                 title = req.POST.get("title")
+#                 category = req.POST.get("category")
+#                 tags = req.POST.getlist("tags")
+#                 name = req.FILES.get("file").name.rsplit(".", 1)[0]
+#             except (TypeError, KeyError) as error:
+#                 print(error)
+#                 return format_error(str(error))
 
-            if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
-                return format_error()
-            for tag in tags:
-                if not isinstance(tag, str):
-                    return format_error()
+#             if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
+#                 return format_error()
+#             for tag in tags:
+#                 if not isinstance(tag, str):
+#                     return format_error()
 
-            user = UserInfo.objects.filter(id=token["id"]).first()
-            if not user:
-                return unauthorized_error()
+#             user = UserInfo.objects.filter(id=token["id"]).first()
+#             if not user:
+#                 return unauthorized_error()
 
-            video_file = req.FILES.get("file")
-            if not video_file:
-                return format_error()
-            with open('TEMP_VIDEO.mp4', 'wb') as temp_video:
-                for chunk in video_file.chunks():
-                    temp_video.write(chunk)
-            # from_video_to_gif_task.delay()
+#             video_file = req.FILES.get("file")
+#             if not video_file:
+#                 return format_error()
+#             with open('TEMP_VIDEO.mp4', 'wb') as temp_video:
+#                 for chunk in video_file.chunks():
+#                     temp_video.write(chunk)
+#             # from_video_to_gif_task.delay()
 
-            video = imageio.get_reader('TEMP_VIDEO.mp4', 'ffmpeg')
-            fps = video.get_meta_data()['fps']
-            gif_frames = []
-            for frame in video:
-                gif_frames.append(frame[:, :, :3])
-            imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
+#             video = imageio.get_reader('TEMP_VIDEO.mp4')
+#             fps = video.get_meta_data()['fps']
+#             gif_frames = []
+#             for frame in video:
+#                 gif_frames.append(frame[:, :, :3])
+#             imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
 
-            gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
-            gif_file = GifFile.objects.create(metadata=gif, file='TEMP_GIF.gif')
+#             gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
+#             gif_file = GifFile.objects.create(metadata=gif, file='TEMP_GIF.gif')
 
-            with open('TEMP_GIF.gif', 'rb') as temp_gif:
-                gif_file.file.save(name+'.gif', ContentFile(temp_gif.read()))
-            gif_file.save()
+#             with open('TEMP_GIF.gif', 'rb') as temp_gif:
+#                 gif_file.file.save(name+'.gif', ContentFile(temp_gif.read()))
+#             gif_file.save()
 
-            with Image.open(gif_file.file) as image:
-                duration = image.info['duration'] * image.n_frames
-            gif.duration = duration / 1000.0
-            gif.width = gif_file.file.width
-            gif.height = gif_file.file.height
-            gif.name = gif_file.file.name
-            gif.save()
+#             with Image.open(gif_file.file) as image:
+#                 duration = image.info['duration'] * image.n_frames
+#             gif.duration = duration / 1000.0
+#             gif.width = gif_file.file.width
+#             gif.height = gif_file.file.height
+#             gif.name = gif_file.file.name
+#             gif.save()
 
-            os.remove('TEMP_VIDEO.mp4')
-            os.remove('TEMP_GIF.gif')
+#             os.remove('TEMP_VIDEO.mp4')
+#             os.remove('TEMP_GIF.gif')
 
-            return_data = {
-                "data": {
-                    "id": gif.id,
-                    "width": gif.width,
-                    "height": gif.height,
-                    "duration": gif.duration,
-                    "uploader": user.id,
-                    "pub_time": gif.pub_time
-                }
-            }
-            return request_success(return_data)
-        return not_found_error()
-    except Exception as error:
-        print(error)
-        return internal_error(str(error))
+#             return_data = {
+#                 "data": {
+#                     "id": gif.id,
+#                     "width": gif.width,
+#                     "height": gif.height,
+#                     "duration": gif.duration,
+#                     "uploader": user.id,
+#                     "pub_time": gif.pub_time
+#                 }
+#             }
+#             return request_success(return_data)
+#         return not_found_error()
+#     except Exception as error:
+#         print(error)
+#         return internal_error(str(error))
 
 # @shared_task
 # def from_video_to_gif_task():
@@ -603,7 +641,7 @@ def image_allgifs(req: HttpRequest):
         }
     '''
     try:
-        if req.method == "GET":
+        if req.method == "POST":
             try:
                 body = json.loads(req.body.decode("utf-8"))
                 req_category = body["category"]
