@@ -82,37 +82,37 @@ MEDIA_ROOT = BASE_DIR / 'files/'
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+with open("config/config.json","r",encoding="utf-8") as f:
+    config = json.load(f)
+
+if not DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config["backend-db"]['database'],
+            'USER': config["backend-db"]['username'],
+            'PASSWORD': config["backend-db"]['password'],
+            'HOST': config["backend-db"]['hostname'],
+            'PORT': config["backend-db"]['port'],
+            'TEST': {
+                'NAME': 'backend_test_db',
+            },
+        }
     }
-}
-
-# with open("config/config.json","r",encoding="utf-8") as f:
-#     config = json.load(f)
-
-# if not DEBUG:
-#     DATABASES = {
-#         'default': {
-#             'ENGINE': 'django.db.backends.postgresql',
-#             'NAME': config["backend-db"]['database'],
-#             'USER': config["backend-db"]['username'],
-#             'PASSWORD': config["backend-db"]['password'],
-#             'HOST': config["backend-db"]['hostname'],
-#             'PORT': config["backend-db"]['port'],
-#             'TEST': {
-#                 'NAME': 'backend_test_db',
-#             },
-#         }
-#     }
-# else:
-#     DATABASES = {
-#         'default': {
-#             'ENGINE': 'django.db.backends.sqlite3',
-#             'NAME': BASE_DIR / 'db.sqlite3',
-#         }
-#     }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
