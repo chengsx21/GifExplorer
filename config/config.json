@@ -3,7 +3,7 @@
         "username": "dbserver",
         "password": "dbserverpw",
         "database": "dbserver",
-        "hostname": "GIfExplorer-db-Nullptr.secoder.local",
+        "hostname": "GIfExplorer-db.Nullptr.secoder.local",
         "port": 5432
     }
 }
