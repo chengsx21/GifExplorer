@@ -1,9 +1,9 @@
 {
     "backend-db": {
-        "username": "django",
-        "password": "GIF_EXPLORER_PASSWORD",
-        "database": "django",
-        "hostname": "GIfExplorer-db-Nullptr.app.secoder.net",
+        "username": "dbserver",
+        "password": "dbserverpw",
+        "database": "dbserver",
+        "hostname": "GIfExplorer-db.Nullptr.secoder.local",
         "port": 5432
     }
 }
