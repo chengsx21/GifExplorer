@@ -554,6 +554,98 @@ def image_download_zip(req: HttpRequest):
         print(error)
         return internal_error(str(error))
 
+@csrf_exempt
+def image_like(req: HttpRequest):
+    '''
+    request:
+        - gif_id
+        - user token is needed
+    response:
+        - status
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            body = json.loads(req.body.decode("utf-8"))
+            gif_id = body["gif_id"]
+            if not isinstance(gif_id, int):
+                return format_error()
+
+            gif = GifMetadata.objects.filter(id=gif_id).first()
+            if not gif:
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            user = UserInfo.objects.filter(id=token["id"]).first()
+            if not user:
+                return unauthorized_error()
+            if str(gif_id) not in user.favorites:
+                user.favorites[str(gif_id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                print(user.favorites)
+                user.save()
+                gif.likes += 1
+                gif.save()
+                return request_success(data={"data": {}})
+            else:
+                return request_failed(5, "INVALID_LIKES", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def image_cancel_like(req: HttpRequest):
+    '''
+    request:
+        - gif_id
+        - user token is needed
+    response:
+        - status
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            body = json.loads(req.body.decode("utf-8"))
+            gif_id = body["gif_id"]
+            if not isinstance(gif_id, int):
+                return format_error()
+
+            gif = GifMetadata.objects.filter(id=gif_id).first()
+            if not gif:
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            user = UserInfo.objects.filter(id=token["id"]).first()
+            if not user:
+                return unauthorized_error()
+            if str(gif_id) in user.favorites:
+                user.favorites.pop(str(gif_id))
+                print(user.favorites)
+                user.save()
+                gif.likes -= 1
+                gif.save()
+                return request_success(data={"data": {}})
+            else:
+                return request_failed(5, "INVALID_LIKES", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
 # @csrf_exempt
 # def from_video_to_gif(req: HttpRequest):
 #     '''
@@ -705,7 +797,6 @@ def image_allgifs(req: HttpRequest):
                     "id": gif.id,
                     "title": gif.title,
                     "category": gif.category,
-                    # "gif_url": gif.file.url,
                     "uploader": user.user_name,
                     "pub_time": gif.pub_time
                 }
