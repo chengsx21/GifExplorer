@@ -484,7 +484,7 @@ def image_preview(req: HttpRequest, gif_id: any):
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
             gif_file = open(gif.giffile.file.path, 'rb')
             file_wrapper = FileWrapper(gif_file)
-            response = HttpResponse(file_wrapper, content_type='image/gif')
+            response = HttpResponse(file_wrapper, content_type='image/gif', headers={'Access-Control-Allow-Origin': '*'})
             response['Content-Disposition'] = f'inline; filename="{gif.name}"'
             return response
         return not_found_error()
@@ -510,7 +510,7 @@ def image_download(req: HttpRequest, gif_id: any):
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
             gif_file = open(gif.giffile.file.path, 'rb')
             file_wrapper = FileWrapper(gif_file)
-            response = HttpResponse(file_wrapper, content_type='application/octet-stream')
+            response = HttpResponse(file_wrapper, content_type='application/octet-stream', headers={'Access-Control-Allow-Origin': '*'})
             response['Content-Disposition'] = f'attachment; filename="{gif.title}.gif"'
             return response
         return not_found_error()
@@ -545,7 +545,7 @@ def image_download_zip(req: HttpRequest):
                     zip_file.writestr(f"{gif.title}.gif", gif_file.read())
                     gif_file.close()
 
-            response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+            response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip', headers={'Access-Control-Allow-Origin': '*'})
             time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
             response['Content-Disposition'] = f'attachment; filename="{time}.zip"'
             return response
