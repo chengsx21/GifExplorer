@@ -6,6 +6,7 @@ import os
 import json
 from wsgiref.util import FileWrapper
 import io
+import datetime
 import imageio
 import imagehash
 from jwt import DecodeError
@@ -511,6 +512,42 @@ def image_download(req: HttpRequest, gif_id: any):
             file_wrapper = FileWrapper(gif_file)
             response = HttpResponse(file_wrapper, content_type='application/octet-stream')
             response['Content-Disposition'] = f'attachment; filename="{gif.title}.gif"'
+            return response
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def image_download_zip(req: HttpRequest):
+    '''
+    request:
+        - gif_ids: a comma-separated list of GIF ids
+    response:
+        Return a HttpResponse including a zip file containing the requested gifs for download
+    '''
+    try:
+        if req.method == "POST":
+            body = json.loads(req.body.decode("utf-8"))
+            gif_ids = body["gif_ids"]
+            if not gif_ids:
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            gifs = GifMetadata.objects.filter(id__in=gif_ids)
+
+            if len(gifs) != len(gif_ids):
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, mode='w') as zip_file:
+                for gif in gifs:
+                    gif_file = open(gif.giffile.file.path, 'rb')
+                    zip_file.writestr(f"{gif.title}.gif", gif_file.read())
+                    gif_file.close()
+
+            response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+            time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            response['Content-Disposition'] = f'attachment; filename="{time}.zip"'
             return response
         return not_found_error()
     except Exception as error:

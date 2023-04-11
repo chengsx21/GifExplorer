@@ -7,6 +7,7 @@ import imagehash
 from PIL import Image
 import jwt
 from .config import *
+from .models import GifFingerprint
 
 def is_english(char: str):
     '''
@@ -110,8 +111,9 @@ def add_gif_fingerprint_to_list(fingerprint):
     '''
         Calculate gif fingerprint
     '''
-    if str(fingerprint) not in GIF_HASH_LIST:
-        GIF_HASH_LIST.append(str(fingerprint))
+    if not GifFingerprint.objects.filter(fingerprint=fingerprint).exists():
+        gif_fingerprint = GifFingerprint(fingerprint=fingerprint)
+        gif_fingerprint.save()
         return True
     return False
 
@@ -119,5 +121,6 @@ def delete_gif_fingerprint_from_list(fingerprint):
     '''
         Delete gif fingerprint
     '''
-    if str(fingerprint) in GIF_HASH_LIST:
-        GIF_HASH_LIST.remove(str(fingerprint))
+    if GifFingerprint.objects.filter(fingerprint=fingerprint).exists():
+        gif_fingerprint = GifFingerprint.objects.get(fingerprint=fingerprint)
+        gif_fingerprint.delete()
