@@ -69,3 +69,16 @@ class GifFile(models.Model):
             set table name in db
         '''
         db_table = "giffile"
+
+class GifFingerprint(models.Model):
+    '''
+        model for gif fingerprint
+    '''
+    fingerprint = models.CharField(max_length=64, unique=True)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "giffingerprint"
