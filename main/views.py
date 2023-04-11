@@ -1,6 +1,7 @@
 '''
     views.py in django frame work
 '''
+import zipfile
 import os
 import json
 from wsgiref.util import FileWrapper
@@ -420,15 +421,16 @@ def image_detail(req: HttpRequest, gif_id: any):
             user = UserInfo.objects.filter(id=gif.uploader).first()
 
             return_data = {
-                    "id": gif.id,
-                    "title": gif.title,
-                    # "url": gif.gif_file.url,
-                    "uploader": user.user_name,
-                    "width": gif.width,
-                    "height": gif.height,
-                    "duration": gif.duration,
-                    "pub_time": gif.pub_time,
-                    "like": gif.likes
+                "data": {
+                        "id": gif.id,
+                        "title": gif.title,
+                        "uploader": user.user_name,
+                        "width": gif.width,
+                        "height": gif.height,
+                        "duration": gif.duration,
+                        "pub_time": gif.pub_time,
+                        "like": gif.likes
+                    }
                 }
             return request_success(return_data)
         elif req.method == "DELETE":
