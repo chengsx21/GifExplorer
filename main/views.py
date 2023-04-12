@@ -7,12 +7,12 @@ import json
 from wsgiref.util import FileWrapper
 import io
 import datetime
-import imageio
+# import imageio
 import imagehash
 from jwt import DecodeError
 from PIL import Image
 # from celery import shared_task
-from django.core.files.base import ContentFile
+# from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from utils.utils_request import not_found_error, unauthorized_error, internal_error, format_error, request_failed, request_success
@@ -281,6 +281,65 @@ def check_user_login(req: HttpRequest):
         return internal_error(str(error))
 
 @csrf_exempt
+def user_read_history(req: HttpRequest):
+    '''
+    request:
+        - gif_id
+        - user token is needed
+    response:
+        - status
+    '''
+    try:
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        user_name = token["user_name"]
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return unauthorized_error()
+
+        if req.method == "POST":
+            try:
+                gif_id = int(req.GET.get("id"))
+            except (TypeError, ValueError) as error:
+                print(error)
+                return format_error(str(error))
+            gif = GifMetadata.objects.filter(id=gif_id).first()
+            if not gif:
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            if not user.read_history:
+                user.read_history = {}
+            user.read_history[str(gif_id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            user.save()
+            return request_success(data={"data": {}})
+
+        if req.method == "GET":
+            try:
+                page = int(req.GET.get("page"))
+            except (TypeError, ValueError) as error:
+                print(error)
+                return request_failed(6, "INVALID_PAGES", data={"data": {"error": str(error)}})
+            read_history_list, pages = helpers.show_user_read_history_pages(user, page - 1)
+            return request_success(data=
+                {
+                    "data": {
+                        "page_count": pages,
+                        "page_data": read_history_list
+                    }
+                })
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
 def image_upload(req: HttpRequest):
     '''
     request:
@@ -479,7 +538,7 @@ def image_preview(req: HttpRequest, gif_id: any):
             if not isinstance(gif_id, str) or not gif_id.isdecimal():
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
-            gif = GifMetadata.objects.filter(id=gif_id).first()
+            gif = GifMetadata.objects.filter(id=int(gif_id)).first()
             if not gif:
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
             gif_file = open(gif.giffile.file.path, 'rb')
@@ -505,7 +564,7 @@ def image_download(req: HttpRequest, gif_id: any):
             if not isinstance(gif_id, str) or not gif_id.isdecimal():
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
-            gif = GifMetadata.objects.filter(id=gif_id).first()
+            gif = GifMetadata.objects.filter(id=int(gif_id)).first()
             if not gif:
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
             gif_file = open(gif.giffile.file.path, 'rb')

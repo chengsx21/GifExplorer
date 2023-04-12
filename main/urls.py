@@ -13,6 +13,7 @@ urlpatterns = [
     path('user/modifypassword', views.user_modify_password),
     path('user/logout', views.user_logout),
     path('user/checklogin', views.check_user_login),
+    path('user/history', views.user_read_history),
     path('image/upload', views.image_upload),
     # path('image/video', views.from_video_to_gif),
     path('image/detail/<gif_id>', views.image_detail),

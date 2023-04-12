@@ -163,6 +163,34 @@ class ViewsTests(TestCase):
         '''
         return self.client.post('/user/checklogin', data={}, content_type="application/json", HTTP_AUTHORIZATION=token)
 
+    def user_add_history_with_wrong_response_method(self, gif_id, token):
+        '''
+            Create a DELETE/user/history HttpRequest
+        '''
+        url = f'/user/history?id={gif_id}'
+        return self.client.delete(url, HTTP_AUTHORIZATION=token)
+
+    def user_add_history_with_correct_response_method(self, gif_id, token):
+        '''
+            Create a POST/user/history HttpRequest
+        '''
+        url = f'/user/history?id={gif_id}'
+        return self.client.post(url, HTTP_AUTHORIZATION=token)
+
+    def user_history_with_wrong_response_method(self, page, token):
+        '''
+            Create a DELETE/user/history HttpRequest
+        '''
+        url = f'/user/history?page={page}'
+        return self.client.delete(url, HTTP_AUTHORIZATION=token)
+
+    def user_history_with_correct_response_method(self, page, token):
+        '''
+            Create a GET/user/history HttpRequest
+        '''
+        url = f'/user/history?page={page}'
+        return self.client.get(url, HTTP_AUTHORIZATION=token)
+
     def image_upload_with_correct_response_method(self, url, title, category, tags, token):
         '''
             Create a POST/image/upload HttpRequest
@@ -320,7 +348,6 @@ class ViewsTests(TestCase):
             "gif_id": image_id
         }
         return self.client.post('/image/cancel-like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
-
 
     def image_allgifs_with_wrong_response_method(self, category):
         '''
@@ -605,6 +632,45 @@ class ViewsTests(TestCase):
             res = self.user_checklogin_with_wrong_response_method(token)
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.json()["code"], 1000)
+
+    def test_user_history(self):
+        '''
+            Test user history function
+        '''
+        user = UserInfo.objects.filter(user_name=self.user_name_list[0]).first()
+        user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
+        helpers.add_token_to_white_list(user_token)
+
+        res = self.user_history_with_correct_response_method(1, user_token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["page_count"], 0)
+
+        self.user_add_history_with_correct_response_method(1, user_token)
+        res = self.user_history_with_correct_response_method(1, user_token)
+        self.assertEqual(res.json()["data"]["page_count"], 1)
+        self.assertEqual(len(res.json()["data"]["page_data"]), 1)
+
+        self.user_add_history_with_correct_response_method(2, user_token)
+        res = self.user_history_with_correct_response_method(1, user_token)
+        self.assertEqual(res.json()["data"]["page_count"], 1)
+        self.assertEqual(len(res.json()["data"]["page_data"]), 2)
+
+    def test_user_history_with_wrong_response_method(self):
+        '''
+            Test user history with wrong response method
+        '''
+        user = UserInfo.objects.filter(user_name=self.user_name_list[0]).first()
+        user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
+        helpers.add_token_to_white_list(user_token)
+
+        res = self.user_add_history_with_wrong_response_method(1, user_token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+        res = self.user_history_with_wrong_response_method(1, user_token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
 
     def test_image_upload(self):
         '''
