@@ -207,10 +207,6 @@ class ViewsTests(TestCase):
         '''
             Create a GET/image/upload HttpRequest
         '''
-        # with open('/files/tests/Cake.jpg', 'rb') as f:
-        #     file_data = f.read()
-        # uploaded_file = SimpleUploadedFile('Strawberry.jpg', file_data)
-
         with open(url, 'rb') as reader:
             file_data = reader.read()
         uploaded_file = SimpleUploadedFile(url, file_data)
@@ -270,6 +266,61 @@ class ViewsTests(TestCase):
             Create a GET/image/download HttpRequest
         '''
         return self.client.get('/image/download/'+image_id)
+
+    def image_download_zip_with_wrong_response_method(self, image_ids):
+        '''
+            Create a GET/image/download_zip HttpRequest
+        '''
+        req = {
+            "gif_ids": image_ids
+        }
+        return self.client.get('/image/download_zip', data=req, content_type="application/json")
+
+    def image_download_zip_with_correct_response_method(self, image_ids):
+        '''
+            Create a POST/image/download_zip HttpRequest
+        '''
+        req = {
+            "gif_ids": image_ids
+        }
+        return self.client.post('/image/download_zip', data=req, content_type="application/json")
+
+    def image_like_with_wrong_response_method(self, image_id, token):
+        '''
+            Create a GET/image/like HttpRequest
+        '''
+        req = {
+            "gif_id": image_id
+        }
+        return self.client.get('/image/like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def image_like_with_correct_response_method(self, image_id, token):
+        '''
+            Create a POST/image/like HttpRequest
+        '''
+        req = {
+            "gif_id": image_id
+        }
+        return self.client.post('/image/like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def image_cancel_like_with_wrong_response_method(self, image_id, token):
+        '''
+            Create a GET/image/cancel-like HttpRequest
+        '''
+        req = {
+            "gif_id": image_id
+        }
+        return self.client.get('/image/cancel-like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def image_cancel_like_with_correct_response_method(self, image_id, token):
+        '''
+            Create a POST/image/cancel-like HttpRequest
+        '''
+        req = {
+            "gif_id": image_id
+        }
+        return self.client.post('/image/cancel-like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
 
     def image_allgifs_with_wrong_response_method(self, category):
         '''
@@ -773,7 +824,7 @@ class ViewsTests(TestCase):
 
     def test_image_download_with_image_not_eixst(self):
         '''
-            Test image download with user not eixst
+            Test image download with image not eixst
         '''
         res = self.image_download_with_correct_response_method(image_id=str(114514))
         self.assertEqual(res.status_code, 400)
@@ -787,6 +838,107 @@ class ViewsTests(TestCase):
             res = self.image_download_with_wrong_response_method(image_id=str(i))
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_download_zip(self):
+        '''
+            Test image download_zip
+        '''
+        image_ids = []
+        for i in self.image_id:
+            image_ids.append(i)
+        res = self.image_download_zip_with_correct_response_method(image_ids=image_ids)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'application/zip')
+
+    def test_image_download_zip_with_image_not_eixst(self):
+        '''
+            Test image download_zip with image not eixst
+        '''
+        image_ids = []
+        for i in self.image_id:
+            image_ids.append(i)
+        image_ids.append(114514)
+        res = self.image_download_zip_with_correct_response_method(image_ids=image_ids)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
+
+    def test_image_download_zip_with_wrong_method(self):
+        '''
+            Test image download_zip with wrong method
+        '''
+        image_ids = []
+        for i in self.image_id:
+            image_ids.append(i)
+        res = self.image_download_zip_with_wrong_response_method(image_ids=image_ids)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_like(self):
+        '''
+            Test image like
+        '''
+        user = UserInfo.objects.filter(user_name=self.user_name_list[0]).first()
+        user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
+        helpers.add_token_to_white_list(user_token)
+
+        for i in self.image_id:
+            res = self.image_like_with_correct_response_method(image_id=i, token=user_token)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            res = self.image_detail_with_correct_response_method(image_id=str(i))
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(res.json()["data"]["like"], 1)
+            res = self.image_cancel_like_with_correct_response_method(image_id=i, token=user_token)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            res = self.image_detail_with_correct_response_method(image_id=str(i))
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(res.json()["data"]["like"], 0)
+
+    def test_image_like_with_wrong_response_method(self):
+        '''
+            Test image like with wrong response method
+        '''
+        user = UserInfo.objects.filter(user_name=self.user_name_list[0]).first()
+        user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
+        helpers.add_token_to_white_list(user_token)
+
+        res = self.image_like_with_wrong_response_method(image_id=self.image_id[0], token=user_token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.image_cancel_like_with_wrong_response_method(image_id=self.image_id[0], token=user_token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_like_with_invalid_token(self):
+        '''
+            Test image like with invalid token
+        '''
+        user_token = helpers.create_token(user_name="NotExist!", user_id=114514)
+
+        res = self.image_like_with_correct_response_method(image_id=self.image_id[0], token=user_token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.image_like_with_correct_response_method(image_id=self.image_id[0], token=user_token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+
+    def test_image_like_with_wrong_type(self):
+        '''
+            Test image like with wrong type
+        '''
+        user = UserInfo.objects.filter(user_name=self.user_name_list[0]).first()
+        user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
+        helpers.add_token_to_white_list(user_token)
+
+        res = self.image_like_with_correct_response_method(image_id="string", token=user_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        res = self.image_cancel_like_with_correct_response_method(image_id="string", token=user_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
 
     def test_image_allgifs(self):
         '''
@@ -804,7 +956,7 @@ class ViewsTests(TestCase):
         res = self.image_allgifs_with_correct_response_method("joyful")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        
+
     def test_image_allgifs_with_wrong_method(self):
         '''
             Test image allgifs with wrong method
