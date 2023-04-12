@@ -19,5 +19,7 @@ urlpatterns = [
     path('image/preview/<gif_id>', views.image_preview),
     path('image/download/<gif_id>', views.image_download),
     path('image/download_zip', views.image_download_zip),
+    path('image/like', views.image_like),
+    path('image/cancel-like', views.image_cancel_like),
     path('image/allgifs', views.image_allgifs),
 ]

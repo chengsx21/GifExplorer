@@ -8,22 +8,29 @@ def request_failed(code, info, status_code=400, data={}):
     '''
         Return a http failure response
     '''
-    return JsonResponse({
-        "code": code,
-        "info": info,
-        **data
-    }, status=status_code)
+    return JsonResponse(
+        {
+            "code": code,
+            "info": info,
+            **data
+        },
+        status=status_code,
+        headers={'Access-Control-Allow-Origin': '*'}
+    )
 
 
 def request_success(data={}):
     '''
         Return a http success response
     '''
-    return JsonResponse({
-        "code": 0,
-        "info": "Succeed",
-        **data
-    })
+    return JsonResponse(
+        {
+            "code": 0,
+            "info": "Succeed",
+            **data
+        },
+        headers={'Access-Control-Allow-Origin': '*'}
+    )
 
 
 def return_field(obj_dict, field_list):
