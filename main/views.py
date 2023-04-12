@@ -588,7 +588,6 @@ def image_like(req: HttpRequest):
                 return unauthorized_error()
             if str(gif_id) not in user.favorites:
                 user.favorites[str(gif_id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-                print(user.favorites)
                 user.save()
                 gif.likes += 1
                 gif.save()
@@ -634,7 +633,6 @@ def image_cancel_like(req: HttpRequest):
                 return unauthorized_error()
             if str(gif_id) in user.favorites:
                 user.favorites.pop(str(gif_id))
-                print(user.favorites)
                 user.save()
                 gif.likes -= 1
                 gif.save()
