@@ -2,6 +2,8 @@
     configure for the app
 '''
 
+MAX_GIFS_PER_PAGE = 20
+
 USER_WHITE_LIST = {}
 
 SECRET_KEY = "Welcome to the god damned SE world!"

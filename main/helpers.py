@@ -3,11 +3,12 @@
 '''
 import hashlib
 import re
-import imagehash
-from PIL import Image
+import math
+# import imagehash
+# from PIL import Image
 import jwt
-from .config import *
-from .models import GifFingerprint
+from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
+from .models import UserInfo, GifMetadata, GifFingerprint
 
 def is_english(char: str):
     '''
@@ -124,3 +125,45 @@ def delete_gif_fingerprint_from_list(fingerprint):
     if GifFingerprint.objects.filter(fingerprint=fingerprint).exists():
         gif_fingerprint = GifFingerprint.objects.get(fingerprint=fingerprint)
         gif_fingerprint.delete()
+
+def get_user_read_history(user: UserInfo):
+    """
+        get read history list from a user
+    """
+    if not user.read_history:
+        user.read_history = {}
+    read_history_dict = {}
+    for key in user.read_history:
+        gif = GifMetadata.objects.filter(id=int(key)).first()
+        if gif:
+            read_history_dict[key] = user.read_history[key]
+    read_history_list = list(read_history_dict.items())
+
+    read_history_list = sorted(read_history_list, key=lambda x: x[1], reverse=True)
+    return read_history_list
+
+def show_user_read_history_pages(user: UserInfo, page: int):
+    '''
+        Show user read history pages
+    '''
+    if not user.read_history:
+        return [], 0
+    begin = page * MAX_GIFS_PER_PAGE
+    end = (page + 1) * MAX_GIFS_PER_PAGE
+    read_history_list = get_user_read_history(user)
+    read_history_page = read_history_list[begin:end]
+
+    gif_list = []
+    for gif_id, read_time in read_history_page:
+        gif = GifMetadata.objects.filter(id=int(gif_id)).first()
+        user = UserInfo.objects.filter(id=gif.uploader).first()
+        if gif:
+            gif_list.append({
+                "id": gif.id,
+                "title": gif.title,
+                "uploader": user.user_name,
+                "pub_time": gif.pub_time.strftime('%Y-%m-%d_%H-%M-%S'),
+                "like": gif.likes,
+                "visit_time": read_time
+            })
+    return gif_list, math.ceil(len(read_history_list) / MAX_GIFS_PER_PAGE)
