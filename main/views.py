@@ -405,8 +405,11 @@ def image_upload(req: HttpRequest):
             gif_file.save()
 
             with Image.open(gif_file.file) as image:
-                duration = image.info['duration'] * image.n_frames
-            gif.duration = duration / 1000.0
+                durations = [image.info.get("duration")] * image.n_frames
+                if not durations[0]:
+                    durations = [100] * image.n_frames
+                total_time = sum(durations) / 1000.0
+            gif.duration = total_time
             gif.width = gif_file.file.width
             gif.height = gif_file.file.height
             gif.name = gif_file.file.name
