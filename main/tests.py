@@ -167,28 +167,28 @@ class ViewsTests(TestCase):
         '''
             Create a DELETE/user/history HttpRequest
         '''
-        url = f'/user/history?id={gif_id}'
+        url = f'/user/read_history?id={gif_id}'
         return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
     def user_add_history_with_correct_response_method(self, gif_id, token):
         '''
             Create a POST/user/history HttpRequest
         '''
-        url = f'/user/history?id={gif_id}'
+        url = f'/user/read_history?id={gif_id}'
         return self.client.post(url, HTTP_AUTHORIZATION=token)
 
     def user_history_with_wrong_response_method(self, page, token):
         '''
             Create a DELETE/user/history HttpRequest
         '''
-        url = f'/user/history?page={page}'
+        url = f'/user/read_history?page={page}'
         return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
     def user_history_with_correct_response_method(self, page, token):
         '''
             Create a GET/user/history HttpRequest
         '''
-        url = f'/user/history?page={page}'
+        url = f'/user/read_history?page={page}'
         return self.client.get(url, HTTP_AUTHORIZATION=token)
 
     def image_upload_with_correct_response_method(self, url, title, category, tags, token):

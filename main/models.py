@@ -70,6 +70,19 @@ class GifFile(models.Model):
         '''
         db_table = "giffile"
 
+class GifComment(models.Model):
+    '''
+        model for gif comment
+    '''
+    id = models.AutoField(primary_key=True)
+    metadata = models.ForeignKey(GifMetadata, on_delete=models.CASCADE, related_name='comments')
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
+    user = models.PositiveIntegerField(default=1)
+    content = models.TextField(max_length=200)
+    likes = models.PositiveIntegerField(default=0)
+    pub_time = models.DateTimeField(auto_now_add=True)
+    objects = models.Manager()
+
 class GifFingerprint(models.Model):
     '''
         model for gif fingerprint
