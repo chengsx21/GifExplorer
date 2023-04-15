@@ -18,7 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 from utils.utils_request import not_found_error, unauthorized_error, internal_error, format_error, request_failed, request_success
 from . import helpers
 from . import config
-from .models import UserInfo, GifMetadata, GifFile
+from .models import UserInfo, GifMetadata, GifFile, GifComment
 
 # Create your views here.
 @csrf_exempt
@@ -799,6 +799,192 @@ def image_cancel_like(req: HttpRequest):
 #         gif_frames.append(frame[:, :, :3])
 #     gif = imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
 #     return None
+
+@csrf_exempt
+def image_comment(req: HttpRequest, gif_id: any):
+    '''
+    GET:
+    request:
+        None
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": [
+                {
+                    "id": 2,
+                    "user": "Test1",
+                    "content": "这是一条测试评论",
+                    "pub_time": "2023-04-15T13:56:39.518Z",
+                    "like": 1919,
+                    "replies": []
+                },
+                {
+                    "id": 1,
+                    "user": "Test1",
+                    "content": "测试评论",
+                    "pub_time": "2023-04-15T13:56:38.484Z",
+                    "like": 810,
+                    "replies": [
+                        {
+                            "id": 3,
+                            "user": "Test2",
+                            "content": "评论",
+                            "pub_time": "2023-04-15T13:56:43.351Z",
+                            "like": 123
+                        }
+                    ]
+                }
+            ]
+            
+        }
+    POST:
+    request:
+        User Token
+        {
+            "content": "这是一条测试评论",
+            "parent_id": 10
+        }
+    response:
+        {
+            "code": 0,
+            "info": "Succeed",
+            "data": {
+                "id": 5,
+                "user": "Test",
+                "content": "这是一条测试评论",
+                "pub_time": "2023-04-15T14:41:21.525Z"
+            }
+        }
+        {
+            "code": 9,
+            "info": "GIFS_NOT_FOUND",
+            "data": {}
+        }
+        {
+            "code": 10,
+            "info": "COMMENT_NOT_FOUND",
+            "data": {}
+        }
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+            try:
+                body = json.loads(req.body)
+                content = body["content"]
+                parent_id = body.get("parent_id")
+            except (TypeError, KeyError) as error:
+                print(error)
+                return format_error(str(error))
+
+            if not (isinstance(gif_id, str) and isinstance(content, str) and gif_id.isdigit()):
+                return format_error()
+
+            user = UserInfo.objects.filter(id=token["id"]).first()
+            if not user:
+                return unauthorized_error()
+
+            gif = GifMetadata.objects.filter(id=int(gif_id)).first()
+            if not gif:
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            if parent_id:
+                parent = GifComment.objects.filter(parent__isnull=True, id=parent_id).first()
+                if not parent:
+                    return request_failed(10, "COMMENT_NOT_FOUND", data={"data": {}})
+                comment = GifComment.objects.create(metadata=gif, user=user, content=content, parent=parent)
+            else:
+                comment = GifComment.objects.create(metadata=gif, user=user, content=content)
+            comment.save()
+            return_data = {
+                "data": {
+                    "id": comment.id,
+                    "user": user.user_name,
+                    "content": comment.content,
+                    "pub_time": comment.pub_time
+                }
+            }
+            return request_success(return_data)
+        if req.method == "GET":
+            if not isinstance(gif_id, str) or not gif_id.isdigit():
+                return format_error()
+            gif = GifMetadata.objects.filter(id=int(gif_id)).first()
+            if not gif:
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            comments = gif.comments.all().filter(parent__isnull=True)
+            comments = comments.order_by('-pub_time')
+            comments_data = []
+            for comment in comments:
+                comment_data = {
+                    "id": comment.id,
+                    "user": comment.user.user_name,
+                    "content": comment.content,
+                    "pub_time": comment.pub_time,
+                    "like": comment.likes
+                }
+                replies_data = []
+                replies = comment.replies.all().order_by('-pub_time')
+                for reply in replies:
+                    reply_data = {
+                        "id": reply.id,
+                        "user": reply.user.user_name,
+                        "content": reply.content,
+                        "pub_time": reply.pub_time,
+                        "like": reply.likes
+                    }
+                    replies_data.append(reply_data)
+                comment_data["replies"] = replies_data
+                comments_data.append(comment_data)
+            return_data = {
+                "data": comments_data
+            }
+            return request_success(return_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def image_comment_delete(req: HttpRequest, comment_id: any):
+    '''
+        删除评论
+    '''
+    try:
+        if req.method == "DELETE":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            if not isinstance(comment_id, str) or not comment_id.isdigit():
+                return format_error()
+
+            comment = GifComment.objects.filter(id=int(comment_id)).first()
+            if not comment:
+                return request_failed(11, "COMMENTS_NOT_FOUND", data={"data": {}})
+            user = UserInfo.objects.filter(id=token["id"]).first()
+            if not (user and comment.user == user):
+                return unauthorized_error()
+
+            comment.delete()
+            return request_success(data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def image_allgifs(req: HttpRequest):

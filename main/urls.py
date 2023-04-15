@@ -22,7 +22,7 @@ urlpatterns = [
     path('image/download_zip', views.image_download_zip),
     path('image/like', views.image_like),
     path('image/cancel-like', views.image_cancel_like),
-    # path('image/comment/<gif_id>', views.image_comment),
-    # path('image/comment', views.image_comment),
+    path('image/comment/<gif_id>', views.image_comment),
+    path('image/comment/delete/<comment_id>', views.image_comment_delete),
     path('image/allgifs', views.image_allgifs),
 ]
