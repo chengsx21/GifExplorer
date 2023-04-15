@@ -77,7 +77,7 @@ class GifComment(models.Model):
     id = models.AutoField(primary_key=True)
     metadata = models.ForeignKey(GifMetadata, on_delete=models.CASCADE, related_name='comments')
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
-    user = models.PositiveIntegerField(default=1)
+    user = models.ForeignKey(UserInfo, on_delete=models.CASCADE)
     content = models.TextField(max_length=200)
     likes = models.PositiveIntegerField(default=0)
     pub_time = models.DateTimeField(auto_now_add=True)
