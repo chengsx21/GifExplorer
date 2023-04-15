@@ -392,14 +392,10 @@ def image_upload(req: HttpRequest):
             if not user:
                 return unauthorized_error()
 
-            # file_header = req.FILES.get("file").read(6)
-            # hex_header = file_header.hex()
-            # if hex_header != '474946383961':
-            #     return request_failed(10, "INVALID_GIF", data={"data": {}})
-
             file_contents = req.FILES.get("file").read()
             if file_contents[0:6] != b'GIF89a' and file_contents[0:6] != b'GIF87a':
                 return request_failed(10, "INVALID_GIF", data={"data": {}})
+
             file_obj = io.BytesIO(file_contents)
             image = Image.open(file_obj)
             gif_fingerprint = imagehash.average_hash(image, hash_size=16)
@@ -407,7 +403,6 @@ def image_upload(req: HttpRequest):
             if fingerprint.gif_id != 0:
                 return request_success(data={"data": {"id": fingerprint.id}})
 
-            # gif not empty is needed
             gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
             gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
             gif_file.save()
