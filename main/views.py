@@ -449,13 +449,13 @@ def image_detail(req: HttpRequest, gif_id: any):
             "data": {
                 "id": 514,
                 "title": "Wonderful Gif",
-                "url": "https://wonderful-gif/apple.gif",
                 "uploader": "AliceBurn", 
                 "width": gif.width,
                 "height": gif.height,
                 "duration": gif.duration,
                 "pub_time": "2023-03-21T19:02:16.305Z",
-                "like": 114514
+                "like": 114514,
+                "isliked": True
             }
         }
     DELETE:
@@ -488,6 +488,16 @@ def image_detail(req: HttpRequest, gif_id: any):
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
             user = UserInfo.objects.filter(id=gif.uploader).first()
 
+            is_liked = False
+            if req.META.get("HTTP_AUTHORIZATION"):
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+                current_user = UserInfo.objects.filter(id=token["id"]).first()
+                if str(gif.id) in current_user.favorites:
+                    is_liked = True
+
             return_data = {
                 "data": {
                         "id": gif.id,
@@ -497,7 +507,8 @@ def image_detail(req: HttpRequest, gif_id: any):
                         "height": gif.height,
                         "duration": gif.duration,
                         "pub_time": gif.pub_time,
-                        "like": gif.likes
+                        "like": gif.likes,
+                        "is_liked": is_liked
                     }
                 }
             return request_success(return_data)
@@ -920,26 +931,45 @@ def image_comment(req: HttpRequest, gif_id: any):
             if not gif:
                 return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
+            login = False
+            if req.META.get("HTTP_AUTHORIZATION"):
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+                login = True
+                user = UserInfo.objects.filter(id=token["id"]).first()
+                if str(gif.id) in user.favorites:
+                    is_liked = True
+
             comments = gif.comments.all().filter(parent__isnull=True)
             comments = comments.order_by('-pub_time')
             comments_data = []
             for comment in comments:
+                is_liked = False
+                if login and str(comment.id) in user.comment_favorites:
+                    is_liked = True
                 comment_data = {
                     "id": comment.id,
                     "user": comment.user.user_name,
                     "content": comment.content,
                     "pub_time": comment.pub_time,
-                    "like": comment.likes
+                    "like": comment.likes,
+                    "is_liked": is_liked
                 }
                 replies_data = []
                 replies = comment.replies.all().order_by('-pub_time')
                 for reply in replies:
+                    is_liked = False
+                    if login and str(reply.id) in user.comment_favorites:
+                        is_liked = True
                     reply_data = {
                         "id": reply.id,
                         "user": reply.user.user_name,
                         "content": reply.content,
                         "pub_time": reply.pub_time,
-                        "like": reply.likes
+                        "like": reply.likes,
+                        "is_liked": is_liked
                     }
                     replies_data.append(reply_data)
                 comment_data["replies"] = replies_data
