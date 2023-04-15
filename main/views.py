@@ -987,6 +987,94 @@ def image_comment_delete(req: HttpRequest, comment_id: any):
         return internal_error(str(error))
 
 @csrf_exempt
+def image_comment_like(req: HttpRequest, comment_id: any):
+    '''
+    request:
+        - user token is needed
+    response:
+        - status
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            if not isinstance(comment_id, str) or not comment_id.isdigit():
+                return format_error()
+
+            comment = GifComment.objects.filter(id=int(comment_id)).first()
+            if not comment:
+                return request_failed(11, "COMMENTS_NOT_FOUND", data={"data": {}})
+            user = UserInfo.objects.filter(id=token["id"]).first()
+            if not user:
+                return unauthorized_error()
+
+            if not user.comment_favorites:
+                user.comment_favorites = []
+            if comment_id not in user.comment_favorites:
+                user.comment_favorites.append(comment_id)
+                user.save()
+                comment.likes += 1
+                comment.save()
+                return request_success(data={"data": {}})
+            else:
+                return request_failed(5, "INVALID_LIKES", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def image_comment_cancel_like(req: HttpRequest, comment_id: any):
+    '''
+    request:
+        - user token is needed
+    response:
+        - status
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            if not isinstance(comment_id, str) or not comment_id.isdigit():
+                return format_error()
+
+            comment = GifComment.objects.filter(id=int(comment_id)).first()
+            if not comment:
+                return request_failed(11, "COMMENTS_NOT_FOUND", data={"data": {}})
+            user = UserInfo.objects.filter(id=token["id"]).first()
+            if not user:
+                return unauthorized_error()
+
+            if not user.comment_favorites:
+                user.comment_favorites = []
+            if comment_id in user.comment_favorites:
+                user.comment_favorites.remove(comment_id)
+                user.save()
+                comment.likes -= 1
+                comment.save()
+                return request_success(data={"data": {}})
+            else:
+                return request_failed(5, "INVALID_LIKES", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
 def image_allgifs(req: HttpRequest):
     '''
     request:

@@ -19,6 +19,7 @@ class UserInfo(models.Model):
     register_time = DateTimeField(auto_now_add=True)
     avatar = models.TextField(blank=True)
     favorites = models.JSONField(null=True, blank=True, default=dict)
+    comment_favorites = models.JSONField(null=True, blank=True, default=list)
     read_history = models.JSONField(null=True, blank=True, default=dict)
     search_history = models.JSONField(null=True, blank=True, default=dict)
     objects = models.Manager()

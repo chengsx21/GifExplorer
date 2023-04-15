@@ -24,5 +24,7 @@ urlpatterns = [
     path('image/cancel-like', views.image_cancel_like),
     path('image/comment/<gif_id>', views.image_comment),
     path('image/comment/delete/<comment_id>', views.image_comment_delete),
+    path('image/comment/like/<comment_id>', views.image_comment_like),
+    path('image/comment/cancel-like/<comment_id>', views.image_comment_cancel_like),
     path('image/allgifs', views.image_allgifs),
 ]
