@@ -112,18 +112,18 @@ def add_gif_fingerprint_to_list(fingerprint):
     '''
         Calculate gif fingerprint
     '''
-    if not GifFingerprint.objects.filter(fingerprint=fingerprint).exists():
+    gif_fingerprint = GifFingerprint.objects.filter(fingerprint=fingerprint).first()
+    if not gif_fingerprint:
         gif_fingerprint = GifFingerprint(fingerprint=fingerprint)
         gif_fingerprint.save()
-        return True
-    return False
+    return gif_fingerprint
 
-def delete_gif_fingerprint_from_list(fingerprint):
+def delete_gif_fingerprint_from_list(gif_id):
     '''
         Delete gif fingerprint
     '''
-    if GifFingerprint.objects.filter(fingerprint=fingerprint).exists():
-        gif_fingerprint = GifFingerprint.objects.get(fingerprint=fingerprint)
+    gif_fingerprint = GifFingerprint.objects.filter(gif_id=gif_id).first()
+    if gif_fingerprint:
         gif_fingerprint.delete()
 
 def get_user_read_history(user: UserInfo):

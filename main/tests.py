@@ -167,28 +167,28 @@ class ViewsTests(TestCase):
         '''
             Create a DELETE/user/history HttpRequest
         '''
-        url = f'/user/history?id={gif_id}'
+        url = f'/user/read_history?id={gif_id}'
         return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
     def user_add_history_with_correct_response_method(self, gif_id, token):
         '''
             Create a POST/user/history HttpRequest
         '''
-        url = f'/user/history?id={gif_id}'
+        url = f'/user/read_history?id={gif_id}'
         return self.client.post(url, HTTP_AUTHORIZATION=token)
 
     def user_history_with_wrong_response_method(self, page, token):
         '''
             Create a DELETE/user/history HttpRequest
         '''
-        url = f'/user/history?page={page}'
+        url = f'/user/read_history?page={page}'
         return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
     def user_history_with_correct_response_method(self, page, token):
         '''
             Create a GET/user/history HttpRequest
         '''
-        url = f'/user/history?page={page}'
+        url = f'/user/read_history?page={page}'
         return self.client.get(url, HTTP_AUTHORIZATION=token)
 
     def image_upload_with_correct_response_method(self, url, title, category, tags, token):
@@ -843,7 +843,7 @@ class ViewsTests(TestCase):
         res = self.image_upload_with_correct_response_method(url="files/tests/Noodles.gif", title="Noodles", category="food", tags=["food", "noodles"], token=user_token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"], {})
+        self.assertEqual(res.json()["data"], {'id': 1})
 
         res = self.image_delete_with_correct_response_method(image_id=image_id, token=user_token)
         self.assertEqual(res.status_code, 200)

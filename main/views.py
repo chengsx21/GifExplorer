@@ -393,16 +393,21 @@ def image_upload(req: HttpRequest):
                 return unauthorized_error()
 
             file_contents = req.FILES.get("file").read()
+            if file_contents[0:6] != b'GIF89a' and file_contents[0:6] != b'GIF87a':
+                return request_failed(10, "INVALID_GIF", data={"data": {}})
+
             file_obj = io.BytesIO(file_contents)
             image = Image.open(file_obj)
             gif_fingerprint = imagehash.average_hash(image, hash_size=16)
-            if not helpers.add_gif_fingerprint_to_list(gif_fingerprint):
-                return request_success(data={"data": {}})
+            fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
+            if fingerprint.gif_id != 0:
+                return request_success(data={"data": {"id": fingerprint.id}})
 
-            # gif not empty is needed
             gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
             gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
             gif_file.save()
+            fingerprint.gif_id = gif.id
+            fingerprint.save()
 
             with Image.open(gif_file.file) as image:
                 durations = [image.info.get("duration")] * image.n_frames
@@ -514,12 +519,7 @@ def image_detail(req: HttpRequest, gif_id: any):
             if gif.uploader != token["id"]:
                 return unauthorized_error()
 
-            file_contents = gif.giffile.file.read()
-            file_obj = io.BytesIO(file_contents)
-            image = Image.open(file_obj)
-            gif_fingerprint = imagehash.average_hash(image, hash_size=16)
-            helpers.delete_gif_fingerprint_from_list(gif_fingerprint)
-
+            helpers.delete_gif_fingerprint_from_list(gif_id)
             os.remove(gif.giffile.file.path)
             gif.delete()
             return request_success(data={"data": {}})
