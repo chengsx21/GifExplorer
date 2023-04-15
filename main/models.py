@@ -74,6 +74,7 @@ class GifFingerprint(models.Model):
     '''
         model for gif fingerprint
     '''
+    gif_id = models.PositiveIntegerField(default=0)
     fingerprint = models.CharField(max_length=64, unique=True)
     objects = models.Manager()
 
