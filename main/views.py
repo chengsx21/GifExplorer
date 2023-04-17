@@ -371,7 +371,7 @@ def user_unfollow(req: HttpRequest, user_id: any):
     except Exception as error:
         print(error)
         return internal_error(str(error))
-    
+
 @csrf_exempt
 def user_read_history(req: HttpRequest):
     '''
@@ -969,8 +969,8 @@ def image_comment(req: HttpRequest, gif_id: any):
             "data": {}
         }
         {
-            "code": 10,
-            "info": "COMMENT_NOT_FOUND",
+            "code": 11,
+            "info": "COMMENTS_NOT_FOUND",
             "data": {}
         }
     '''
@@ -1006,7 +1006,7 @@ def image_comment(req: HttpRequest, gif_id: any):
             if parent_id:
                 parent = GifComment.objects.filter(parent__isnull=True, id=parent_id).first()
                 if not parent:
-                    return request_failed(10, "COMMENT_NOT_FOUND", data={"data": {}})
+                    return request_failed(11, "COMMENTS_NOT_FOUND", data={"data": {}})
                 comment = GifComment.objects.create(metadata=gif, user=user, content=content, parent=parent)
             else:
                 comment = GifComment.objects.create(metadata=gif, user=user, content=content)
@@ -1035,8 +1035,6 @@ def image_comment(req: HttpRequest, gif_id: any):
                     return unauthorized_error()
                 login = True
                 user = UserInfo.objects.filter(id=token["id"]).first()
-                if str(gif.id) in user.favorites:
-                    is_liked = True
 
             comments = gif.comments.all().filter(parent__isnull=True)
             comments = comments.order_by('-pub_time')
@@ -1082,7 +1080,24 @@ def image_comment(req: HttpRequest, gif_id: any):
 @csrf_exempt
 def image_comment_delete(req: HttpRequest, comment_id: any):
     '''
-        删除评论
+    request:
+        user token
+    response:
+        {
+            "code": 0,
+            "info": "Succeed",
+            "data": {}
+        }
+        {
+            "code": 11,
+            "info": "COMMENTS_NOT_FOUND",
+            "data": {}
+        }
+        {
+            "code": 1001,
+            "info": "UNAUTHORIZED",
+            "data": {}
+        }
     '''
     try:
         if req.method == "DELETE":
