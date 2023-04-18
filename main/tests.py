@@ -167,28 +167,28 @@ class ViewsTests(TestCase):
         '''
             Create a DELETE/user/history HttpRequest
         '''
-        url = f'/user/read_history?id={gif_id}'
+        url = f'/user/readhistory?id={gif_id}'
         return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
     def user_add_history_with_correct_response_method(self, gif_id, token):
         '''
             Create a POST/user/history HttpRequest
         '''
-        url = f'/user/read_history?id={gif_id}'
+        url = f'/user/readhistory?id={gif_id}'
         return self.client.post(url, HTTP_AUTHORIZATION=token)
 
     def user_history_with_wrong_response_method(self, page, token):
         '''
             Create a DELETE/user/history HttpRequest
         '''
-        url = f'/user/read_history?page={page}'
+        url = f'/user/readhistory?page={page}'
         return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
     def user_history_with_correct_response_method(self, page, token):
         '''
             Create a GET/user/history HttpRequest
         '''
-        url = f'/user/read_history?page={page}'
+        url = f'/user/readhistory?page={page}'
         return self.client.get(url, HTTP_AUTHORIZATION=token)
 
     def image_upload_with_correct_response_method(self, url, title, category, tags, token):
@@ -295,59 +295,47 @@ class ViewsTests(TestCase):
         '''
         return self.client.get('/image/download/'+image_id)
 
-    def image_download_zip_with_wrong_response_method(self, image_ids):
+    def image_downloadzip_with_wrong_response_method(self, image_ids):
         '''
-            Create a GET/image/download_zip HttpRequest
+            Create a GET/image/downloadzip HttpRequest
         '''
         req = {
             "gif_ids": image_ids
         }
-        return self.client.get('/image/download_zip', data=req, content_type="application/json")
+        return self.client.get('/image/downloadzip', data=req, content_type="application/json")
 
-    def image_download_zip_with_correct_response_method(self, image_ids):
+    def image_downloadzip_with_correct_response_method(self, image_ids):
         '''
-            Create a POST/image/download_zip HttpRequest
+            Create a POST/image/downloadzip HttpRequest
         '''
         req = {
             "gif_ids": image_ids
         }
-        return self.client.post('/image/download_zip', data=req, content_type="application/json")
+        return self.client.post('/image/downloadzip', data=req, content_type="application/json")
 
     def image_like_with_wrong_response_method(self, image_id, token):
         '''
             Create a GET/image/like HttpRequest
         '''
-        req = {
-            "gif_id": image_id
-        }
-        return self.client.get('/image/like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+        return self.client.get('/image/like/'+str(image_id), HTTP_AUTHORIZATION=token)
 
     def image_like_with_correct_response_method(self, image_id, token):
         '''
             Create a POST/image/like HttpRequest
         '''
-        req = {
-            "gif_id": image_id
-        }
-        return self.client.post('/image/like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+        return self.client.post('/image/like/'+str(image_id), HTTP_AUTHORIZATION=token)
 
     def image_cancel_like_with_wrong_response_method(self, image_id, token):
         '''
-            Create a GET/image/cancel-like HttpRequest
+            Create a GET/image/cancellike HttpRequest
         '''
-        req = {
-            "gif_id": image_id
-        }
-        return self.client.get('/image/cancel-like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+        return self.client.get('/image/cancellike/'+str(image_id), HTTP_AUTHORIZATION=token)
 
     def image_cancel_like_with_correct_response_method(self, image_id, token):
         '''
-            Create a POST/image/cancel-like HttpRequest
+            Create a POST/image/cancellike HttpRequest
         '''
-        req = {
-            "gif_id": image_id
-        }
-        return self.client.post('/image/cancel-like', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+        return self.client.post('/image/cancellike/'+str(image_id), HTTP_AUTHORIZATION=token)
 
     def image_allgifs_with_wrong_response_method(self, category):
         '''
@@ -905,37 +893,37 @@ class ViewsTests(TestCase):
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.json()["code"], 1000)
 
-    def test_image_download_zip(self):
+    def test_image_downloadzip(self):
         '''
-            Test image download_zip
+            Test image downloadzip
         '''
         image_ids = []
         for i in self.image_id:
             image_ids.append(i)
-        res = self.image_download_zip_with_correct_response_method(image_ids=image_ids)
+        res = self.image_downloadzip_with_correct_response_method(image_ids=image_ids)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res['Content-Type'], 'application/zip')
 
-    def test_image_download_zip_with_image_not_eixst(self):
+    def test_image_downloadzip_with_image_not_eixst(self):
         '''
-            Test image download_zip with image not eixst
+            Test image downloadzip with image not eixst
         '''
         image_ids = []
         for i in self.image_id:
             image_ids.append(i)
         image_ids.append(114514)
-        res = self.image_download_zip_with_correct_response_method(image_ids=image_ids)
+        res = self.image_downloadzip_with_correct_response_method(image_ids=image_ids)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 9)
 
-    def test_image_download_zip_with_wrong_method(self):
+    def test_image_downloadzip_with_wrong_method(self):
         '''
-            Test image download_zip with wrong method
+            Test image downloadzip with wrong method
         '''
         image_ids = []
         for i in self.image_id:
             image_ids.append(i)
-        res = self.image_download_zip_with_wrong_response_method(image_ids=image_ids)
+        res = self.image_downloadzip_with_wrong_response_method(image_ids=image_ids)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
 
