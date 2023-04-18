@@ -57,6 +57,14 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+EMAIL_HOST_USER = 'gifexplorer@126.com'
+EMAIL_HOST_PASSWORD = 'BQPGNVKTXUHXKIYE'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.126.com'
+EMAIL_PORT = 25
+EMAIL_USE_TLS = True
+EMAIL_USE_TLS = True
+
 ROOT_URLCONF = 'GifExplorer.urls'
 
 TEMPLATES = [
@@ -94,10 +102,10 @@ MEDIA_ROOT = BASE_DIR / 'files/'
 #     }
 # }
 
-with open("config/config.json","r",encoding="utf-8") as f:
-    config = json.load(f)
-
 if not DEBUG:
+    with open("config/config.json","r",encoding="utf-8") as f:
+        config = json.load(f)
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',

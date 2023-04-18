@@ -35,6 +35,24 @@ class UserInfo(models.Model):
         '''
         db_table = "user_info"
 
+class UserVerification(models.Model):
+    '''
+        model for user verification
+    '''
+    user_name = models.CharField(max_length=12, unique=True)
+    token = models.CharField(null=True, blank=True, max_length=60)
+    mail = models.CharField(null=True, blank=True, max_length=100)
+    is_verified = models.BooleanField(default=False)
+    password = models.CharField(null=True, blank=True, max_length=80)
+    salt = models.CharField(null=True, blank=True, max_length=40)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "user_verification"
+
 class GifMetadata(models.Model):
     '''
         model for gif metadata

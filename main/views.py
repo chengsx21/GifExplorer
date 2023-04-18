@@ -3,6 +3,7 @@
 '''
 import zipfile
 import os
+import uuid
 import json
 from wsgiref.util import FileWrapper
 import io
@@ -15,10 +16,13 @@ from PIL import Image
 # from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.mail import send_mail
+from django.utils.html import format_html
 from utils.utils_request import not_found_error, unauthorized_error, internal_error, format_error, request_failed, request_success
+from GifExplorer import settings
 from . import helpers
 from . import config
-from .models import UserInfo, GifMetadata, GifFile, GifComment
+from .models import UserInfo, GifMetadata, GifFile, GifComment, UserVerification
 
 # Create your views here.
 @csrf_exempt
@@ -36,7 +40,8 @@ def user_register(req: HttpRequest):
         {
             "user_name": "Alice",
             "password": "Happy-Day1",
-            "salt": "secret_salt"
+            "salt": "secret_salt",
+            "mail": "test@example.com"
         }
     response:
         {
@@ -56,6 +61,7 @@ def user_register(req: HttpRequest):
                 user_name = body["user_name"]
                 password = body["password"]
                 salt = body["salt"]
+                mail = body["mail"]
             except (TypeError, KeyError) as error:
                 print(error)
                 return format_error(str(error))
@@ -65,21 +71,57 @@ def user_register(req: HttpRequest):
             if not isinstance(password, str):
                 return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
 
-            user = UserInfo.objects.filter(user_name=user_name).first()
+            user = UserVerification.objects.filter(user_name=user_name).first()
             if not user:
-                user = UserInfo(user_name=user_name, password=helpers.hash_password(password), salt=salt)
-                user.save()
-                user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
-                return_data = {
-                    "data": {
-                        "id": user.id,
-                        "user_name": user_name,
-                        "token": user_token
-                    }
-                }
-                helpers.add_token_to_white_list(user_token)
-                return request_success(return_data)
+                verification_token = str(uuid.uuid4())
+                verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/verify?token={verification_token}'
+                vertificated_user = UserVerification.objects.create(user_name=user_name, token=verification_token, mail=mail, password=helpers.hash_password(password), salt=salt)
+                vertificated_user.save()
+
+                subject = 'GifExplorer 注册'
+                message = format_html('欢迎注册 GifExplorer! 请点击<a href="{}" style="display: block; text-align: center; font-weight: bold">{}</a>验证您的账户. 若您没有进行注册操作, 请忽略这封邮件.', verification_link, '这里')
+                recipient = [mail]
+                send_mail(subject=subject, message='', html_message=message, from_email=settings.EMAIL_HOST_USER, recipient_list=recipient)
+
+                return request_success(data={"data": {}})
             return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def user_mail_verify(req: HttpRequest, token: str):
+    '''
+    request:
+        verify user's email.
+    '''
+    try:
+        if req.method == "GET":
+            try:
+                user = UserVerification.objects.filter(token=token).first()
+            except (TypeError, KeyError) as error:
+                print(error)
+                return format_error(str(error))
+
+            if not user:
+                return request_failed(15, "INVALID_TOKEN", data={"data": {}})
+            if user.is_verified is True:
+                return request_failed(16, "ALREADY_VERIFIED", data={"data": {}})
+            user.is_verified = True
+            user.save()
+            new_user = UserInfo(user_name=user.user_name, password=user.password, salt=user.salt, mail=user.mail)
+            new_user.save()
+            user_token = helpers.create_token(user_id=new_user.id, user_name=new_user.user_name)
+            return_data = {
+                "data": {
+                    "id": new_user.id,
+                    "user_name": new_user.user_name,
+                    "token": user_token
+                }
+            }
+            helpers.add_token_to_white_list(user_token)
+            return request_success(return_data)
         return not_found_error()
     except Exception as error:
         print(error)
@@ -295,7 +337,7 @@ def user_profile(req: HttpRequest, user_id: any):
 
             user = UserInfo.objects.filter(id=int(user_id)).first()
             if not user:
-                return request_failed(15, "USER_NOT_FOUND", data={"data": {}})
+                return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
             profile_gifs = GifMetadata.objects.filter(uploader=int(user_id))
             profile_gifs = profile_gifs.order_by('-pub_time')
             gifs = []

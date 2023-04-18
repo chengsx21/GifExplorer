@@ -3,6 +3,7 @@ __pycache__/
 local_start.sh
 db.sqlite3
 gifs
+config/
 
 .coverage
 coverage-reports/
