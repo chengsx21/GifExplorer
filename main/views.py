@@ -471,7 +471,6 @@ def image_upload(req: HttpRequest):
                 category = req.POST.get("category")
                 tags = req.POST.getlist("tags")[0]
                 tags = [tag.strip() for tag in tags.split(",")]
-                print(tags)
             except (TypeError, KeyError) as error:
                 print(error)
                 return format_error(str(error))
