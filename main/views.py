@@ -485,6 +485,7 @@ def image_upload(req: HttpRequest):
                 return unauthorized_error()
 
             file_contents = req.FILES.get("file").read()
+            name = req.FILES.get("file").name
             if file_contents[0:6] != b'GIF89a' and file_contents[0:6] != b'GIF87a':
                 return request_failed(10, "INVALID_GIF", data={"data": {}})
 
@@ -509,7 +510,7 @@ def image_upload(req: HttpRequest):
             gif.duration = total_time
             gif.width = gif_file.file.width
             gif.height = gif_file.file.height
-            gif.name = gif_file.file.name
+            gif.name = name
             gif.save()
 
             return_data = {
@@ -518,6 +519,8 @@ def image_upload(req: HttpRequest):
                     "width": gif.width,
                     "height": gif.height,
                     "duration": gif.duration,
+                    "category": gif.category,
+                    "tags": gif.tags,
                     "uploader": user.id,
                     "pub_time": gif.pub_time
                 }
@@ -680,7 +683,7 @@ def image_download(req: HttpRequest, gif_id: any):
             gif_file = open(gif.giffile.file.path, 'rb')
             file_wrapper = FileWrapper(gif_file)
             response = HttpResponse(file_wrapper, content_type='application/octet-stream', headers={'Access-Control-Allow-Origin': '*'})
-            response['Content-Disposition'] = f'attachment; filename="{gif.title}.gif"'
+            response['Content-Disposition'] = f'attachment; filename="{gif.name}"'
             return response
         return not_found_error()
     except Exception as error:

@@ -885,7 +885,7 @@ class ViewsTests(TestCase):
             res = self.image_download_with_correct_response_method(image_id=str(i))
             gif = GifMetadata.objects.all().filter(id=i).first()
             self.assertEqual(res.status_code, 200)
-            self.assertEqual(res['Content-Disposition'], f'attachment; filename="{gif.title}.gif"')
+            self.assertEqual(res['Content-Disposition'], f'attachment; filename="{gif.name}"')
             self.assertEqual(res['Content-Type'], 'application/octet-stream')
 
     def test_image_download_with_image_not_eixst(self):
