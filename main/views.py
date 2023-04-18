@@ -728,7 +728,7 @@ def image_download_zip(req: HttpRequest):
         return internal_error(str(error))
 
 @csrf_exempt
-def image_like(req: HttpRequest):
+def image_like(req: HttpRequest, gif_id: any):
     '''
     request:
         - gif_id
@@ -747,10 +747,9 @@ def image_like(req: HttpRequest):
                 print(error)
                 return unauthorized_error(str(error))
 
-            body = json.loads(req.body.decode("utf-8"))
-            gif_id = body["gif_id"]
-            if not isinstance(gif_id, int):
+            if not isinstance(gif_id, str) or not gif_id.isdigit():
                 return format_error()
+            gif_id = int(gif_id)
 
             gif = GifMetadata.objects.filter(id=gif_id).first()
             if not gif:
@@ -773,10 +772,9 @@ def image_like(req: HttpRequest):
         return internal_error(str(error))
 
 @csrf_exempt
-def image_cancel_like(req: HttpRequest):
+def image_cancel_like(req: HttpRequest, gif_id: any):
     '''
     request:
-        - gif_id
         - user token is needed
     response:
         - status
@@ -792,10 +790,9 @@ def image_cancel_like(req: HttpRequest):
                 print(error)
                 return unauthorized_error(str(error))
 
-            body = json.loads(req.body.decode("utf-8"))
-            gif_id = body["gif_id"]
-            if not isinstance(gif_id, int):
+            if not isinstance(gif_id, str) or not gif_id.isdigit():
                 return format_error()
+            gif_id = int(gif_id)
 
             gif = GifMetadata.objects.filter(id=gif_id).first()
             if not gif:
