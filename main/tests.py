@@ -242,8 +242,8 @@ class ViewsTests(TestCase):
         req = {
             'file': uploaded_file,
             'title': title,
-            'category': category,
-            'tag': tags
+            'categori': category,
+            'tags': tags
         }
         return self.client.post('/image/upload', data=req, format='multipart', HTTP_AUTHORIZATION=token)
 
@@ -714,7 +714,7 @@ class ViewsTests(TestCase):
         user_token = helpers.create_token(user_name=user.user_name, user_id=user.id)
         helpers.add_token_to_white_list(user_token)
 
-        res = self.image_upload_with_wrong_type(url="files/tests/Strawberry.gif", title="Strawberry", category="food", tags=["food"], token=user_token)
+        res = self.image_upload_with_wrong_type(url="files/tests/Strawberry.gif", title="Strawberry", category="food", tags=["food", "yummy"], token=user_token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1005)
 
