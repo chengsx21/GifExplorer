@@ -13,6 +13,8 @@ urlpatterns = [
     path('user/modifypassword', views.user_modify_password),
     path('user/logout', views.user_logout),
     path('user/checklogin', views.check_user_login),
+    path('user/follow/<user_id>', views.user_follow),
+    path('user/unfollow/<user_id>', views.user_unfollow),
     path('user/read_history', views.user_read_history),
     path('image/upload', views.image_upload),
     # path('image/video', views.from_video_to_gif),

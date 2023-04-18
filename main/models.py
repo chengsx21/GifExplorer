@@ -18,6 +18,8 @@ class UserInfo(models.Model):
     mail = models.CharField(max_length=100, blank=True)
     register_time = DateTimeField(auto_now_add=True)
     avatar = models.TextField(blank=True)
+    followings = models.JSONField(null=True, blank=True, default=dict)
+    followers = models.JSONField(null=True, blank=True, default=dict)
     favorites = models.JSONField(null=True, blank=True, default=dict)
     comment_favorites = models.JSONField(null=True, blank=True, default=list)
     read_history = models.JSONField(null=True, blank=True, default=dict)

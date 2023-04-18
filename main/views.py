@@ -281,6 +281,98 @@ def check_user_login(req: HttpRequest):
         return internal_error(str(error))
 
 @csrf_exempt
+def user_follow(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - user token is needed
+    response:
+        - status
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            user_name = token["user_name"]
+            user = UserInfo.objects.filter(user_name=user_name).first()
+            if not user:
+                return unauthorized_error()
+            if not isinstance(user_id, str) or not user_id.isdigit():
+                return format_error()
+
+            follow_user = UserInfo.objects.filter(id=user_id).first()
+            if not follow_user:
+                return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
+            if follow_user == user:
+                return request_failed(13, "CANNOT_FOLLOW_SELF", data={"data": {}})
+            if str(follow_user.id) not in user.followings:
+                if not user.followings:
+                    user.followings = {}
+                if not follow_user.followers:
+                    follow_user.followers = {}
+                user.followings[str(follow_user.id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                user.save()
+                follow_user.followers[str(user.id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                follow_user.save()
+                return request_success(data={"data": {}})
+            else:
+                return request_failed(14, "INVALID_FOLLOWS", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def user_unfollow(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - user token is needed
+    response:
+        - status
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            user_name = token["user_name"]
+            user = UserInfo.objects.filter(user_name=user_name).first()
+            if not user:
+                return unauthorized_error()
+            if not isinstance(user_id, str) or not user_id.isdigit():
+                return format_error()
+
+            follow_user = UserInfo.objects.filter(id=user_id).first()
+            if not follow_user:
+                return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
+            if follow_user == user:
+                return request_failed(13, "CANNOT_FOLLOW_SELF", data={"data": {}})
+            if str(follow_user.id) in user.followings:
+                user.followings.pop(str(follow_user.id))
+                user.save()
+                follow_user.followers.pop(str(user.id))
+                follow_user.save()
+                return request_success(data={"data": {}})
+            else:
+                return request_failed(14, "INVALID_FOLLOWS", data={"data": {}})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
 def user_read_history(req: HttpRequest):
     '''
     request:
@@ -393,6 +485,7 @@ def image_upload(req: HttpRequest):
                 return unauthorized_error()
 
             file_contents = req.FILES.get("file").read()
+            name = req.FILES.get("file").name
             if file_contents[0:6] != b'GIF89a' and file_contents[0:6] != b'GIF87a':
                 return request_failed(10, "INVALID_GIF", data={"data": {}})
 
@@ -417,7 +510,7 @@ def image_upload(req: HttpRequest):
             gif.duration = total_time
             gif.width = gif_file.file.width
             gif.height = gif_file.file.height
-            gif.name = gif_file.file.name
+            gif.name = name
             gif.save()
 
             return_data = {
@@ -426,6 +519,8 @@ def image_upload(req: HttpRequest):
                     "width": gif.width,
                     "height": gif.height,
                     "duration": gif.duration,
+                    "category": gif.category,
+                    "tags": gif.tags,
                     "uploader": user.id,
                     "pub_time": gif.pub_time
                 }
@@ -452,6 +547,8 @@ def image_detail(req: HttpRequest, gif_id: any):
                 "uploader": "AliceBurn", 
                 "width": gif.width,
                 "height": gif.height,
+                "category": "animals",
+                "tags": ["funny", "cat"],
                 "duration": gif.duration,
                 "pub_time": "2023-03-21T19:02:16.305Z",
                 "like": 114514,
@@ -505,6 +602,8 @@ def image_detail(req: HttpRequest, gif_id: any):
                         "uploader": user.user_name,
                         "width": gif.width,
                         "height": gif.height,
+                        "category": gif.category,
+                        "tags": gif.tags,
                         "duration": gif.duration,
                         "pub_time": gif.pub_time,
                         "like": gif.likes,
@@ -584,7 +683,7 @@ def image_download(req: HttpRequest, gif_id: any):
             gif_file = open(gif.giffile.file.path, 'rb')
             file_wrapper = FileWrapper(gif_file)
             response = HttpResponse(file_wrapper, content_type='application/octet-stream', headers={'Access-Control-Allow-Origin': '*'})
-            response['Content-Disposition'] = f'attachment; filename="{gif.title}.gif"'
+            response['Content-Disposition'] = f'attachment; filename="{gif.name}"'
             return response
         return not_found_error()
     except Exception as error:
@@ -873,8 +972,8 @@ def image_comment(req: HttpRequest, gif_id: any):
             "data": {}
         }
         {
-            "code": 10,
-            "info": "COMMENT_NOT_FOUND",
+            "code": 11,
+            "info": "COMMENTS_NOT_FOUND",
             "data": {}
         }
     '''
@@ -910,7 +1009,7 @@ def image_comment(req: HttpRequest, gif_id: any):
             if parent_id:
                 parent = GifComment.objects.filter(parent__isnull=True, id=parent_id).first()
                 if not parent:
-                    return request_failed(10, "COMMENT_NOT_FOUND", data={"data": {}})
+                    return request_failed(11, "COMMENTS_NOT_FOUND", data={"data": {}})
                 comment = GifComment.objects.create(metadata=gif, user=user, content=content, parent=parent)
             else:
                 comment = GifComment.objects.create(metadata=gif, user=user, content=content)
@@ -939,8 +1038,6 @@ def image_comment(req: HttpRequest, gif_id: any):
                     return unauthorized_error()
                 login = True
                 user = UserInfo.objects.filter(id=token["id"]).first()
-                if str(gif.id) in user.favorites:
-                    is_liked = True
 
             comments = gif.comments.all().filter(parent__isnull=True)
             comments = comments.order_by('-pub_time')
@@ -986,7 +1083,24 @@ def image_comment(req: HttpRequest, gif_id: any):
 @csrf_exempt
 def image_comment_delete(req: HttpRequest, comment_id: any):
     '''
-        删除评论
+    request:
+        user token
+    response:
+        {
+            "code": 0,
+            "info": "Succeed",
+            "data": {}
+        }
+        {
+            "code": 11,
+            "info": "COMMENTS_NOT_FOUND",
+            "data": {}
+        }
+        {
+            "code": 1001,
+            "info": "UNAUTHORIZED",
+            "data": {}
+        }
     '''
     try:
         if req.method == "DELETE":

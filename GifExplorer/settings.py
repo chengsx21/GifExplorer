@@ -79,6 +79,11 @@ WSGI_APPLICATION = 'GifExplorer.wsgi.application'
 
 MEDIA_ROOT = BASE_DIR / 'files/'
 
+# MINIO_ENDPOINT = '127.0.0.1:9000'
+# MINIO_ACCESS_KEY = 'ZIWVbEVtc6BqZpmY'
+# MINIO_SECRET_KEY = 'wPYkfZFCoEtHe55dPVy4MsFKKRZSZf4c'
+# MINIO_SECURE = False # 如果你的MinIO没有启用HTTPS，则需要将其设置为False
+
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
@@ -139,7 +144,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Shanghai'
 
 USE_I18N = True
 
