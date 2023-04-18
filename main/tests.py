@@ -5,7 +5,7 @@ from PIL import Image
 from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
-from main.models import UserInfo, GifMetadata, GifFile
+from main.models import UserInfo, GifMetadata, GifFile, UserVerification
 from . import helpers
 
 class ViewsTests(TestCase):
@@ -16,15 +16,20 @@ class ViewsTests(TestCase):
         self.user_name_list = ["Alice", "Bob", "a刘华强"]
         self.user_password = ["Alice_123", "Bob_123", "Huaqiang_123"]
         self.user_salt = ["alicesalt", "bobsalt", "huaqiangsalt"]
+        self.user_mail = ["Alice@163.com", "Bob@126.com", "huaqiang@126.com"]
         self.user_id = []
         self.user_num = len(self.user_name_list)
         for i in range(self.user_num):
             user_name = self.user_name_list[i]
             password = self.user_password[i]
             salt = self.user_salt[i]
-            user = UserInfo.objects.create(user_name=user_name, password=helpers.hash_password(password), salt=salt)
+            mail = self.user_mail[i]
+            user = UserInfo.objects.create(user_name=user_name, password=helpers.hash_password(password), salt=salt, mail=mail)
             user.full_clean()
             user.save()
+            vertificates_user = UserVerification.objects.create(user_name=user_name, password=helpers.hash_password(password), salt=salt, mail=mail, is_verified=True)
+            vertificates_user.full_clean()
+            vertificates_user.save()
             self.user_id.append(user.id)
 
         self.image_title_list = ["Cake", "Milk", "Muffin"]
@@ -56,25 +61,27 @@ class ViewsTests(TestCase):
             gif.save()
             self.image_id.append(gif.id)
 
-    def user_register_with_wrong_response_method(self, user_name, password, salt):
+    def user_register_with_wrong_response_method(self, user_name, password, salt, mail):
         '''
             Create a GET/user/register HttpRequest
         '''
         req = {
             "user_name": user_name,
             "password": password,
-            "salt": salt
+            "salt": salt,
+            "mail": mail
         }
         return self.client.get('/user/register', data=req, content_type="application/json")
 
-    def user_register_with_correct_response_method(self, user_name, password, salt):
+    def user_register_with_correct_response_method(self, user_name, password, salt, mail):
         '''
             Create a POST/user/register HttpRequest
         '''
         req = {
             "user_name": user_name,
             "password": password,
-            "salt": salt
+            "salt": salt,
+            "mail": mail
         }
         return self.client.post('/user/register', data=req, content_type="application/json")
 
@@ -444,7 +451,7 @@ class ViewsTests(TestCase):
         '''
             Test user register
         '''
-        res = self.user_register_with_correct_response_method(user_name="Helen", password="Helen_123", salt="es123")
+        res = self.user_register_with_correct_response_method(user_name="Helen", password="Helen_123", salt="es123", mail="Helen@163.com")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
 
@@ -452,7 +459,7 @@ class ViewsTests(TestCase):
         '''
             Test user name conflict when registering
         '''
-        res = self.user_register_with_correct_response_method(user_name="Alice", password="Alice_1234", salt="es123")
+        res = self.user_register_with_correct_response_method(user_name="Alice", password="Alice_1234", salt="es123", mail="AliceBeauty@126.com")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1)
 
@@ -460,17 +467,17 @@ class ViewsTests(TestCase):
         '''
             Test user register with get method
         '''
-        res = self.user_register_with_wrong_response_method(user_name="LiuTao", password="WrongMethod!", salt="es123")
+        res = self.user_register_with_wrong_response_method(user_name="LiuTao", password="WrongMethod!", salt="es123", mail="AliceBeauty@126.com")
         self.assertEqual(res.status_code, 404)
 
     def test_user_register_with_wrong_type(self):
         '''
             Test user register with wrong data type
         '''
-        res = self.user_register_with_correct_response_method(user_name="Cindy", password=1145141919810, salt="es123")
+        res = self.user_register_with_correct_response_method(user_name="Cindy", password=1145141919810, salt="es123", mail="Cindy@126.com")
         self.assertEqual(res.status_code, 400)
 
-        res = self.user_register_with_correct_response_method(user_name=1145141919810, password="password", salt="es123")
+        res = self.user_register_with_correct_response_method(user_name=1145141919810, password="password", salt="es123", mail="Tensorflow@126.com")
         self.assertEqual(res.status_code, 400)
 
     def test_user_modify_password(self):

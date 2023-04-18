@@ -8,6 +8,7 @@ import main.views as views
 urlpatterns = [
     path('startup', views.startup),
     path('user/register', views.user_register),
+    path('user/verify/<token>', views.user_mail_verify),
     path('user/salt', views.user_salt),
     path('user/login', views.user_login),
     path('user/modifypassword', views.user_modify_password),
