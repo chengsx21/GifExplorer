@@ -281,6 +281,54 @@ def check_user_login(req: HttpRequest):
         return internal_error(str(error))
 
 @csrf_exempt
+def user_profile(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - None
+    response:
+        - status
+    '''
+    try:
+        if req.method == "GET":
+            if not isinstance(user_id, str) or not user_id.isdigit():
+                return format_error()
+
+            user = UserInfo.objects.filter(id=int(user_id)).first()
+            if not user:
+                return request_failed(15, "USER_NOT_FOUND", data={"data": {}})
+            profile_gifs = GifMetadata.objects.filter(uploader=int(user_id))
+            profile_gifs = profile_gifs.order_by('-pub_time')
+            gifs = []
+            for gif in profile_gifs:
+                gifs.append({
+                    "id": gif.id,
+                    "title": gif.title,
+                    "width": gif.width,
+                    "height": gif.height,
+                    "category": gif.category,
+                    "tags": gif.tags,
+                    "duration": gif.duration,
+                    "pub_time": gif.pub_time,
+                    "like": gif.likes,
+                })
+            return_data = {
+                "data": {
+                    "id": user.id,
+                    "user_name": user.user_name,
+                    "signature": user.signature,
+                    "mail": user.mail,
+                    "followers": len(user.followers),
+                    "following": len(user.followings),
+                    "data": gifs
+                }
+            }
+            return request_success(return_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
 def user_follow(req: HttpRequest, user_id: any):
     '''
     request:
