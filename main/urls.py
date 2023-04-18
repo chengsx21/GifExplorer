@@ -13,6 +13,7 @@ urlpatterns = [
     path('user/modifypassword', views.user_modify_password),
     path('user/logout', views.user_logout),
     path('user/checklogin', views.check_user_login),
+    path('user/profile/<user_id>', views.user_profile),
     path('user/follow/<user_id>', views.user_follow),
     path('user/unfollow/<user_id>', views.user_unfollow),
     path('user/readhistory', views.user_read_history),
