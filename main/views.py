@@ -72,19 +72,29 @@ def user_register(req: HttpRequest):
                 return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
 
             user = UserVerification.objects.filter(user_name=user_name).first()
-            if not user:
-                verification_token = str(uuid.uuid4())
-                verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/verify?token={verification_token}'
-                vertificated_user = UserVerification.objects.create(user_name=user_name, token=verification_token, mail=mail, password=helpers.hash_password(password), salt=salt)
-                vertificated_user.save()
+            if user:
+                if user.is_verified is True:
+                    return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
+                created_at = user.created_at.timestamp()
+                current_time = datetime.datetime.now().timestamp()
+                if current_time - created_at <= config.USER_VERIFICATION_MAX_TIME and user.is_verified is False:
+                    return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
+                user.delete()
 
-                subject = 'GifExplorer 注册'
-                message = format_html('欢迎注册 GifExplorer! 请点击<a href="{}" style="display: block; text-align: center; font-weight: bold">{}</a>验证您的账户. 若您没有进行注册操作, 请忽略这封邮件.', verification_link, '这里')
-                recipient = [mail]
-                send_mail(subject=subject, message='', html_message=message, from_email=settings.EMAIL_HOST_USER, recipient_list=recipient)
+            verification_token = str(uuid.uuid4())
+            verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/signup/verify?token={verification_token}'
+            vertificated_user = UserVerification.objects.create(user_name=user_name, token=verification_token, mail=mail, password=helpers.hash_password(password), salt=salt, created_at=datetime.datetime.now())
+            vertificated_user.save()
 
-                return request_success(data={"data": {}})
-            return request_failed(1, "USER_NAME_CONFLICT", data={"data": {}})
+            subject = 'GifExplorer 注册'
+            message = format_html('欢迎注册 GifExplorer!\
+                请点击<a href="{}" style="display: block; text-align: center; font-weight: bold">{}</a>验证您的账户。\
+                验证链接有效时长为五分钟。\
+                若您没有进行注册操作，请忽略这封邮件。', verification_link, '这里')
+            recipient = [mail]
+            send_mail(subject=subject, message='', html_message=message, from_email=settings.EMAIL_HOST_USER, recipient_list=recipient)
+
+            return request_success(data={"data": {}})
         return not_found_error()
     except Exception as error:
         print(error)
@@ -108,6 +118,10 @@ def user_mail_verify(req: HttpRequest, token: str):
                 return request_failed(15, "INVALID_TOKEN", data={"data": {}})
             if user.is_verified is True:
                 return request_failed(16, "ALREADY_VERIFIED", data={"data": {}})
+            created_at = user.created_at.timestamp()
+            current_time = datetime.datetime.now().timestamp()
+            if current_time - created_at > config.USER_VERIFICATION_MAX_TIME and user.is_verified is False:
+                return request_failed(17, "TOO_LONG_TIME", data={"data": {}})
             user.is_verified = True
             user.save()
             new_user = UserInfo(user_name=user.user_name, password=user.password, salt=user.salt, mail=user.mail)
