@@ -2,6 +2,8 @@
     configure for the app
 '''
 
+USER_VERIFICATION_MAX_TIME = 300
+
 MAX_GIFS_PER_PAGE = 20
 
 USER_WHITE_LIST = {}

@@ -45,6 +45,7 @@ class UserVerification(models.Model):
     is_verified = models.BooleanField(default=False)
     password = models.CharField(null=True, blank=True, max_length=80)
     salt = models.CharField(null=True, blank=True, max_length=40)
+    created_at = models.DateTimeField(default=None, null=True, blank=True)
     objects = models.Manager()
 
     class Meta:
