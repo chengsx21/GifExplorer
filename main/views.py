@@ -10,6 +10,7 @@ import io
 import datetime
 # import imageio
 import imagehash
+import imghdr
 from jwt import DecodeError
 from PIL import Image
 # from celery import shared_task
@@ -311,7 +312,10 @@ def user_avatar(req: HttpRequest):
         if req.method == "POST":
             file = req.FILES.get("file")
             if not file:
-                return request_failed(18, "AVATAR_FILE_NOT_FOUND", data={"data": {}})
+                return request_failed(18, "AVATAR_NOT_FOUND", data={"data": {}})
+            img_format = imghdr.what(file.file)
+            if img_format not in ["jpeg", "png"]:
+                return request_failed(18, "AVATAR_NOT_FOUND", data={"data": {}})
             resized_image = helpers.image_resize(file.file)
             user.avatar = "data:image/png;base64," + helpers.image_to_base64(resized_image)
             user.save()
