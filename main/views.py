@@ -10,6 +10,7 @@ import io
 import datetime
 # import imageio
 import imagehash
+import imghdr
 from jwt import DecodeError
 from PIL import Image
 # from celery import shared_task
@@ -289,6 +290,59 @@ def user_modify_password(req: HttpRequest):
         return internal_error(str(error))
 
 @csrf_exempt
+def user_avatar(req: HttpRequest):
+    '''
+    request:
+        - user token
+        - avatar file
+    '''
+    try:
+        encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+        token = helpers.decode_token(encoded_token)
+        if not helpers.is_token_valid(token=encoded_token):
+            return unauthorized_error()
+    except DecodeError as error:
+        print(error)
+        return unauthorized_error(str(error))
+    user_name = token["user_name"]
+    user = UserInfo.objects.filter(user_name=user_name).first()
+    if not user:
+        return unauthorized_error()
+    try:
+        if req.method == "POST":
+            file = req.FILES.get("file")
+            if not file:
+                return request_failed(18, "AVATAR_NOT_FOUND", data={"data": {}})
+            img_format = imghdr.what(file.file)
+            if img_format not in ["jpeg", "png"]:
+                return request_failed(18, "AVATAR_NOT_FOUND", data={"data": {}})
+            resized_image = helpers.image_resize(file.file)
+            user.avatar = "data:image/png;base64," + helpers.image_to_base64(resized_image)
+            user.save()
+
+            return_data = {
+                "data": {
+                    "id": user.id,
+                    "user_name": user.user_name,
+                    "avatar": user.avatar
+                }
+            }
+            return request_success(return_data)
+        if req.method == "GET":
+            return_data = {
+                "data": {
+                    "id": user.id,
+                    "user_name": user.user_name,
+                    "avatar": user.avatar
+                }
+            }
+            return request_success(return_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
 def user_logout(req: HttpRequest):
     '''
     request:
@@ -373,8 +427,10 @@ def user_profile(req: HttpRequest, user_id: any):
                     "user_name": user.user_name,
                     "signature": user.signature,
                     "mail": user.mail,
+                    "avatar": user.avatar,
                     "followers": len(user.followers),
                     "following": len(user.followings),
+                    "register_time": user.register_time,
                     "data": gifs
                 }
             }
@@ -705,6 +761,8 @@ def image_detail(req: HttpRequest, gif_id: any):
                         "id": gif.id,
                         "title": gif.title,
                         "uploader": user.user_name,
+                        "uploader_id": user.id,
+                        "avatar": user.avatar,
                         "width": gif.width,
                         "height": gif.height,
                         "category": gif.category,

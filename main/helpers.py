@@ -2,10 +2,12 @@
     This helpers.py file contains tools used in views.py - Created by csx
 '''
 import hashlib
+import io
 import re
+import base64
 import math
 # import imagehash
-# from PIL import Image
+from PIL import Image
 import jwt
 from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
 from .models import UserInfo, GifMetadata, GifFingerprint
@@ -167,3 +169,20 @@ def show_user_read_history_pages(user: UserInfo, page: int):
                 "visit_time": read_time
             })
     return gif_list, math.ceil(len(read_history_list) / MAX_GIFS_PER_PAGE)
+
+def image_resize(image, size=(512, 512)):
+    '''
+        Resize a given image
+    '''
+    img = Image.open(image)
+    resized_img = img.resize(size, Image.ANTIALIAS)
+    return resized_img
+
+def image_to_base64(image):
+    '''
+        Transfer image to base64 code
+    '''
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    byte_data = buffer.getvalue()
+    return base64.b64encode(byte_data).decode()
