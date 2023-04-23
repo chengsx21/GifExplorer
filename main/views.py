@@ -1246,6 +1246,7 @@ def image_comment(req: HttpRequest, gif_id: any):
                 comment_data = {
                     "id": comment.id,
                     "user": comment.user.user_name,
+                    "avatar": comment.user.avatar,
                     "content": comment.content,
                     "pub_time": comment.pub_time,
                     "like": comment.likes,
@@ -1260,6 +1261,7 @@ def image_comment(req: HttpRequest, gif_id: any):
                     reply_data = {
                         "id": reply.id,
                         "user": reply.user.user_name,
+                        "avatar": reply.user.avatar,
                         "content": reply.content,
                         "pub_time": reply.pub_time,
                         "like": reply.likes,
