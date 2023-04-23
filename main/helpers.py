@@ -6,7 +6,7 @@ import io
 import re
 import base64
 import math
-# import imagehash
+import magic
 from PIL import Image
 import jwt
 from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
@@ -186,3 +186,10 @@ def image_to_base64(image):
     image.save(buffer, format='PNG')
     byte_data = buffer.getvalue()
     return base64.b64encode(byte_data).decode()
+
+def is_valid_video(file):
+    '''
+        Check whether a file is a valid video
+    '''
+    mime = magic.from_buffer(file.read(1024), mime=True)
+    return mime in ['video/x-matroska', 'video/mp4']

@@ -4,6 +4,8 @@ django-cors-headers
 # pymysql
 # mysqlclient==2.1.0
 
+python-magic
+libmagic
 imagehash
 imageio
 celery

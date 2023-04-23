@@ -7,15 +7,17 @@ import uuid
 import json
 from wsgiref.util import FileWrapper
 import io
+# import time
 import datetime
-# import imageio
-import imagehash
 import imghdr
+import imageio
+import imagehash
 from jwt import DecodeError
 from PIL import Image
-# from celery import shared_task
-# from django.core.files.base import ContentFile
-from django.http import HttpRequest, HttpResponse
+from celery import shared_task
+from celery.result import AsyncResult
+from django.core.files.base import ContentFile
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
 from django.utils.html import format_html
@@ -83,8 +85,14 @@ def user_register(req: HttpRequest):
                 user.delete()
 
             verification_token = str(uuid.uuid4())
+            # print(verification_token)
             verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/signup/verify?token={verification_token}'
-            vertificated_user = UserVerification.objects.create(user_name=user_name, token=verification_token, mail=mail, password=helpers.hash_password(password), salt=salt, created_at=datetime.datetime.now())
+            vertificated_user = UserVerification.objects.create(user_name=user_name,
+                                                                token=verification_token,
+                                                                mail=mail,
+                                                                password=helpers.hash_password(password),
+                                                                salt=salt,
+                                                                created_at=datetime.datetime.now())
             vertificated_user.save()
 
             subject = 'GifExplorer 注册'
@@ -881,8 +889,8 @@ def image_download_zip(req: HttpRequest):
                     gif_file.close()
 
             response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip', headers={'Access-Control-Allow-Origin': '*'})
-            time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            response['Content-Disposition'] = f'attachment; filename="{time}.zip"'
+            cur_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            response['Content-Disposition'] = f'attachment; filename="{cur_time}.zip"'
             return response
         return not_found_error()
     except Exception as error:
@@ -976,99 +984,128 @@ def image_cancel_like(req: HttpRequest, gif_id: any):
         print(error)
         return internal_error(str(error))
 
-# @csrf_exempt
-# def from_video_to_gif(req: HttpRequest):
-#     '''
-#         支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
-#     '''
-#     try:
-#         if req.method == "POST":
-#             try:
-#                 encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-#                 token = helpers.decode_token(encoded_token)
-#                 if not helpers.is_token_valid(token=encoded_token):
-#                     return unauthorized_error()
-#             except DecodeError as error:
-#                 print(error)
-#                 return unauthorized_error(str(error))
+@csrf_exempt
+def from_video_to_gif(req: HttpRequest):
+    '''
+        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
 
-#             try:
-#                 title = req.POST.get("title")
-#                 category = req.POST.get("category")
-#                 tags = req.POST.getlist("tags")
-#                 name = req.FILES.get("file").name.rsplit(".", 1)[0]
-#             except (TypeError, KeyError) as error:
-#                 print(error)
-#                 return format_error(str(error))
+            try:
+                title = req.POST.get("title")
+                category = req.POST.get("category")
+                tags = req.POST.getlist("tags")[0]
+                tags = [tag.strip() for tag in tags.split(",")]
+                name = req.FILES.get("file").name.rsplit(".", 1)[0]
+                hashed_name = name + str(uuid.uuid4())[0:8]
+            except (TypeError, KeyError) as error:
+                print(error)
+                return format_error(str(error))
 
-#             if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
-#                 return format_error()
-#             for tag in tags:
-#                 if not isinstance(tag, str):
-#                     return format_error()
+            if not (isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
+                return format_error()
+            for tag in tags:
+                if not isinstance(tag, str):
+                    return format_error()
 
-#             user = UserInfo.objects.filter(id=token["id"]).first()
-#             if not user:
-#                 return unauthorized_error()
+            user = UserInfo.objects.filter(id=token["id"]).first()
+            if not user:
+                return unauthorized_error()
 
-#             video_file = req.FILES.get("file")
-#             if not video_file:
-#                 return format_error()
-#             with open('TEMP_VIDEO.mp4', 'wb') as temp_video:
-#                 for chunk in video_file.chunks():
-#                     temp_video.write(chunk)
-#             # from_video_to_gif_task.delay()
+            video_file = req.FILES.get("file")
+            if not helpers.is_valid_video(video_file):
+                return request_failed(19, "INVALID_VIDEO", data={"data": {}})
+            if not video_file:
+                return format_error()
+            with open(hashed_name + ".mp4", 'wb') as temp_video:
+                for chunk in video_file.chunks():
+                    temp_video.write(chunk)
 
-#             video = imageio.get_reader('TEMP_VIDEO.mp4')
-#             fps = video.get_meta_data()['fps']
-#             gif_frames = []
-#             for frame in video:
-#                 gif_frames.append(frame[:, :, :3])
-#             imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
+            task = from_video_to_gif_task.delay(title=title, category=category, tags=tags, user=user.id, hashed_name=hashed_name)
+            return_data = {
+                "data": {
+                    "task_id": task.id,
+                    "task_status": task.status
+                }
+            }
+            return request_success(data=return_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
-#             gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
-#             gif_file = GifFile.objects.create(metadata=gif, file='TEMP_GIF.gif')
+@shared_task
+def from_video_to_gif_task(*, title: str, category: str, tags: list, user: int, hashed_name: str):
+    '''
+        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+    '''
+    video = imageio.get_reader(hashed_name + ".mp4")
+    fps = video.get_meta_data()['fps']
+    gif_frames = []
+    for frame in video:
+        gif_frames.append(frame[:, :, :3])
+    imageio.mimsave(hashed_name + ".gif", gif_frames, fps=fps)
 
-#             with open('TEMP_GIF.gif', 'rb') as temp_gif:
-#                 gif_file.file.save(name+'.gif', ContentFile(temp_gif.read()))
-#             gif_file.save()
+    gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
+    gif_file = GifFile.objects.create(metadata=gif, file=hashed_name + ".gif")
 
-#             with Image.open(gif_file.file) as image:
-#                 duration = image.info['duration'] * image.n_frames
-#             gif.duration = duration / 1000.0
-#             gif.width = gif_file.file.width
-#             gif.height = gif_file.file.height
-#             gif.name = gif_file.file.name
-#             gif.save()
+    with open(hashed_name + ".gif", 'rb') as temp_gif:
+        gif_file.file.save(hashed_name + ".gif", ContentFile(temp_gif.read()))
+    gif_file.save()
 
-#             os.remove('TEMP_VIDEO.mp4')
-#             os.remove('TEMP_GIF.gif')
+    with Image.open(gif_file.file) as image:
+        duration = image.info['duration'] * image.n_frames
+    gif.duration = duration / 1000.0
+    gif.width = gif_file.file.width
+    gif.height = gif_file.file.height
+    gif.name = gif_file.file.name
+    gif.save()
 
-#             return_data = {
-#                 "data": {
-#                     "id": gif.id,
-#                     "width": gif.width,
-#                     "height": gif.height,
-#                     "duration": gif.duration,
-#                     "uploader": user.id,
-#                     "pub_time": gif.pub_time
-#                 }
-#             }
-#             return request_success(return_data)
-#         return not_found_error()
-#     except Exception as error:
-#         print(error)
-#         return internal_error(str(error))
+    os.remove(hashed_name + ".mp4")
+    os.remove(hashed_name + ".gif")
 
-# @shared_task
-# def from_video_to_gif_task():
-#     video = imageio.get_reader('TEMP_VIDEO.mp4')
-#     fps = video.get_meta_data()['fps']
-#     gif_frames = []
-#     for frame in video:
-#         gif_frames.append(frame[:, :, :3])
-#     gif = imageio.mimsave('TEMP_GIF.gif', gif_frames, fps=fps)
-#     return None
+    return_data = {
+        "data": {
+            "id": gif.id,
+            "width": gif.width,
+            "height": gif.height,
+            "duration": gif.duration,
+            "uploader": user,
+            "pub_time": gif.pub_time.strftime('%Y-%m-%d_%H-%M-%S')
+        }
+    }
+    return return_data
+
+@csrf_exempt
+def check_from_video_to_gif_task_status(req: HttpRequest, task_id):
+    '''
+        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+    '''
+    try:
+        if req.method == "GET":
+            task_result = AsyncResult(task_id)
+            response_data = {
+                "task_id": task_id,
+                "task_status": task_result.status,
+            }
+
+            if task_result.status == 'SUCCESS':
+                response_data['task_result'] = task_result.result
+
+            return JsonResponse(response_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
 
 @csrf_exempt
 def image_comment(req: HttpRequest, gif_id: any):
