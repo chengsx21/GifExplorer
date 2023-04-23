@@ -576,7 +576,7 @@ def user_read_history(req: HttpRequest):
 
             if not user.read_history:
                 user.read_history = {}
-            user.read_history[str(gif_id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            user.read_history[str(gif_id)] = str(datetime.datetime.now())
             user.save()
             return request_success(data={"data": {}})
 
