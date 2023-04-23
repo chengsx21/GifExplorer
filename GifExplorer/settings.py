@@ -57,6 +57,19 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+CELERY_TIMEZONE = "Asia/Shanghai"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+
+if not DEBUG:
+    CELERY_BROKER_URL = 'amqp://dbserver:dbserver@GifExplorer-Rabbitmq.Nullptr.secoder.local:5672//'
+else:
+    CELERY_BROKER_URL = 'amqp://guest:guest@172.17.0.2:5672//'
+CELERY_RESULT_BACKEND = 'rpc://'
+# CELERY_ACCEPT_CONTENT = ['json']
+# CELERY_RESULT_SERIALIZER = 'json'
+# CELERY_TASK_SERIALIZER = 'json'
+
 EMAIL_HOST_USER = 'gifexplorer@126.com'
 EMAIL_HOST_PASSWORD = 'BQPGNVKTXUHXKIYE'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

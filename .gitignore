@@ -2,6 +2,7 @@ __pycache__/
 **/migrations/
 local_start.sh
 db.sqlite3
+celery.log
 gifs
 config/
 
