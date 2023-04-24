@@ -403,6 +403,30 @@ class ViewsTests(TestCase):
         }
         return self.client.post('/image/comment/'+str(gif_id), data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
+    def image_comment_get_with_wrong_response_method(self, gif_id, token):
+        '''
+            Create a PUT/image/comment HttpRequest
+        '''
+        return self.client.put('/image/comment/'+str(gif_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_get_with_gif_not_found(self, gif_id, token):
+        '''
+            Create a GET/image/comment HttpRequest
+        '''
+        return self.client.get('/image/comment/'+str(gif_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_get_with_wrong_token(self, gif_id, token):
+        '''
+            Create a GET/image/comment HttpRequest
+        '''
+        return self.client.get('/image/comment/'+str(gif_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_get_with_correct_response_method(self, gif_id, token):
+        '''
+            Create a GET/image/comment HttpRequest
+        '''
+        return self.client.get('/image/comment/'+str(gif_id), HTTP_AUTHORIZATION=token)
+
     def image_allgifs_with_wrong_response_method(self, category):
         '''
             Create a GET/image/allgifs HttpRequest
@@ -992,6 +1016,7 @@ class ViewsTests(TestCase):
         res = self.image_downloadzip_with_correct_response_method(image_ids=image_ids)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 9)
+        image_ids.remove(114514)
 
     def test_image_downloadzip_with_wrong_method(self):
         '''
@@ -1134,6 +1159,65 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 11)
         helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_get(self):
+        '''
+            Test image comment get
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_parent_with_correct_response_method(gif_id=2, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_parent_with_correct_response_method(gif_id=2, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_son_with_correct_response_method(gif_id=2, parent_id=1, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_get_with_correct_response_method(gif_id=2, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 2)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_get_with_wrong_token(self):
+        '''
+            Test image comment get with wrong token
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114)
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_get_with_wrong_token(gif_id=1, token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_get_with_wrong_response_method(self):
+        '''
+            Test image comment get with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_get_with_wrong_response_method(gif_id=1, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+        
+    def test_image_comment_get_with_gif_not_found(self):
+        '''
+            Test image comment get with gif not found
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_get_with_gif_not_found(gif_id=100, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
+        helpers.delete_token_from_white_list(token)
+
 
     def test_image_allgifs(self):
         '''

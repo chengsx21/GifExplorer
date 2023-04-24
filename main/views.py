@@ -1271,8 +1271,10 @@ def image_comment(req: HttpRequest, gif_id: any):
                 token = helpers.decode_token(encoded_token)
                 if not helpers.is_token_valid(token=encoded_token):
                     return unauthorized_error()
-                login = True
                 user = UserInfo.objects.filter(id=token["id"]).first()
+                if not user:
+                    return unauthorized_error()
+                login = True
 
             comments = gif.comments.all().filter(parent__isnull=True)
             comments = comments.order_by('-pub_time')
