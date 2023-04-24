@@ -778,7 +778,8 @@ def image_detail(req: HttpRequest, gif_id: any):
                         "duration": gif.duration,
                         "pub_time": gif.pub_time,
                         "like": gif.likes,
-                        "is_liked": is_liked
+                        "is_liked": is_liked,
+                        "path": gif.giffile.file.path
                     }
                 }
             return request_success(return_data)
