@@ -451,6 +451,30 @@ class ViewsTests(TestCase):
         '''
         return self.client.delete('/image/comment/delete/'+str(comment_id), HTTP_AUTHORIZATION=token)
 
+    def image_comment_like_with_wrong_response_method(self, comment_id, token):
+        '''
+            Create a GET/image/comment/like HttpRequest
+        '''
+        return self.client.get('/image/comment/like/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_like_with_correct_response_method(self, comment_id, token):
+        '''
+            Create a POST/image/comment/like HttpRequest
+        '''
+        return self.client.post('/image/comment/like/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_cancel_like_with_wrong_response_method(self, comment_id, token):
+        '''
+            Create a GET/image/comment/cancellike HttpRequest
+        '''
+        return self.client.get('/image/comment/cancellike/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_cancel_like_with_correct_response_method(self, comment_id, token):
+        '''
+            Create a POST/image/comment/cancellike HttpRequest
+        '''
+        return self.client.post('/image/comment/cancellike/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
     def image_allgifs_with_wrong_response_method(self, category):
         '''
             Create a GET/image/allgifs HttpRequest
@@ -1310,6 +1334,75 @@ class ViewsTests(TestCase):
         res = self.image_comment_delete_with_comment_not_found(comment_id=100, token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 11)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like(self):
+        '''
+            Test image comment like
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_parent_with_correct_response_method(gif_id=1, token=token)
+        comment_id = res.json()["data"]["id"]
+        res = self.image_comment_like_with_correct_response_method(comment_id=comment_id, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_get_with_correct_response_method(gif_id=1, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"][0]["like"], 1)
+        res = self.image_comment_cancel_like_with_correct_response_method(comment_id=comment_id, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_get_with_correct_response_method(gif_id=1, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"][0]["like"], 0)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like_with_wrong_response_method(self):
+        '''
+            Test image comment like with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_like_with_wrong_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.image_comment_cancel_like_with_wrong_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like_with_invalid_token(self):
+        '''
+            Test image comment like with invalid token
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+
+        res = self.image_comment_like_with_correct_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.image_comment_like_with_correct_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like_with_wrong_type(self):
+        '''
+            Test image comment like with wrong type
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_like_with_correct_response_method(comment_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        res = self.image_comment_cancel_like_with_correct_response_method(comment_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
         helpers.delete_token_from_white_list(token)
 
     def test_image_allgifs(self):
