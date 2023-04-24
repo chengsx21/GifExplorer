@@ -237,6 +237,18 @@ class ViewsTests(TestCase):
         '''
         return self.client.post('/user/checklogin', data={}, content_type="application/json", HTTP_AUTHORIZATION=token)
 
+    def user_profile_with_wrong_response_method(self, user_id):
+        '''
+            Create a POST/user/profile HttpRequest
+        '''
+        return self.client.post('/user/profile/'+user_id)
+
+    def user_profile_with_correct_response_method(self, user_id):
+        '''
+            Create a GET/user/profile HttpRequest
+        '''
+        return self.client.get('/user/profile/'+user_id)
+
     def user_add_history_with_wrong_response_method(self, gif_id, token):
         '''
             Create a DELETE/user/history HttpRequest
@@ -975,6 +987,40 @@ class ViewsTests(TestCase):
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.json()["code"], 1000)
             helpers.delete_token_from_white_list(token)
+
+    def test_user_profile(self):
+        '''
+            Test user profile function
+        '''
+        for i in range(self.user_num):
+            res = self.user_profile_with_correct_response_method(str(self.user_id[i]))
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+
+    def test_user_profile_with_wrong_response_method(self):
+        '''
+            Test user profile with wrong response method
+        '''
+        for i in range(self.user_num):
+            res = self.user_profile_with_wrong_response_method(str(self.user_id[i]))
+            self.assertEqual(res.status_code, 404)
+            self.assertEqual(res.json()["code"], 1000)
+
+    def test_user_profile_with_user_not_exists(self):
+        '''
+            Test user profile with user not exists
+        '''
+        res = self.user_profile_with_correct_response_method(str(114514))
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+
+    def test_user_profile_with_invalid_user_id(self):
+        '''
+            Test user profile with user not exists
+        '''
+        res = self.user_profile_with_correct_response_method("A string!")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
 
     def test_user_history(self):
         '''
