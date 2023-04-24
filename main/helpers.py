@@ -164,7 +164,7 @@ def show_user_read_history_pages(user: UserInfo, page: int):
                 "id": gif.id,
                 "title": gif.title,
                 "uploader": user.user_name,
-                "pub_time": gif.pub_time.strftime('%Y-%m-%d_%H-%M-%S'),
+                "pub_time": gif.pub_time,
                 "like": gif.likes,
                 "visit_time": read_time
             })
