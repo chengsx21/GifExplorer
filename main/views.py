@@ -85,7 +85,7 @@ def user_register(req: HttpRequest):
                 user.delete()
 
             verification_token = str(uuid.uuid4())
-            # print(verification_token)
+            print(verification_token)
             verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/signup/verify?token={verification_token}'
             vertificated_user = UserVerification.objects.create(user_name=user_name,
                                                                 token=verification_token,
@@ -987,7 +987,22 @@ def image_cancel_like(req: HttpRequest, gif_id: any):
 @csrf_exempt
 def from_video_to_gif(req: HttpRequest):
     '''
-        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+    request:
+        {
+            "title": "Wonderful Gif",
+            "category": "animals"
+            "tags": ["funny", "cat"]
+        }
+        Tip: The video file is sent within the request!
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+                "task_status": "PENDING"
+            }
+        }
     '''
     try:
         if req.method == "POST":
@@ -1046,7 +1061,7 @@ def from_video_to_gif(req: HttpRequest):
 @shared_task
 def from_video_to_gif_task(*, title: str, category: str, tags: list, user: int, hashed_name: str):
     '''
-        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+        mp4/mkv -> gif
     '''
     video = imageio.get_reader(hashed_name + ".mp4")
     fps = video.get_meta_data()['fps']
@@ -1069,7 +1084,6 @@ def from_video_to_gif_task(*, title: str, category: str, tags: list, user: int, 
     gif.height = gif_file.file.height
     gif.name = gif_file.file.name
     gif.save()
-
     os.remove(hashed_name + ".mp4")
     os.remove(hashed_name + ".gif")
 
@@ -1080,7 +1094,7 @@ def from_video_to_gif_task(*, title: str, category: str, tags: list, user: int, 
             "height": gif.height,
             "duration": gif.duration,
             "uploader": user,
-            "pub_time": gif.pub_time.strftime('%Y-%m-%d_%H-%M-%S')
+            "pub_time": gif.pub_time
         }
     }
     return return_data
@@ -1088,7 +1102,31 @@ def from_video_to_gif_task(*, title: str, category: str, tags: list, user: int, 
 @csrf_exempt
 def check_from_video_to_gif_task_status(req: HttpRequest, task_id):
     '''
-        支持mp4/mkv格式视频上传后在线转换为 GIF 处理过程不能阻塞操作
+    request:
+        None
+    response:
+        {
+            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+            "task_status": "PENDING"
+        }
+        {
+            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+            "task_status": "STARTED"
+        }
+        {
+            "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
+            "task_status": "SUCCESS",
+            "task_result": {
+                "data": {
+                    "id": 6,
+                    "width": 1280,
+                    "height": 720,
+                    "duration": 5.2,
+                    "uploader": 1,
+                    "pub_time": "2023-04-24T01:22:07.326363Z"
+                }
+            }
+        }
     '''
     try:
         if req.method == "GET":
