@@ -249,6 +249,30 @@ class ViewsTests(TestCase):
         '''
         return self.client.get('/user/profile/'+user_id)
 
+    def user_follow_with_wrong_response_method(self, user_id, token):
+        '''
+            Create a GET/user/follow HttpRequest
+        '''
+        return self.client.get('/user/follow/'+str(user_id), HTTP_AUTHORIZATION=token)
+
+    def user_follow_with_correct_response_method(self, user_id, token):
+        '''
+            Create a POST/user/follow HttpRequest
+        '''
+        return self.client.post('/user/follow/'+str(user_id), HTTP_AUTHORIZATION=token)
+
+    def user_unfollow_with_wrong_response_method(self, user_id, token):
+        '''
+            Create a GET/user/unfollow HttpRequest
+        '''
+        return self.client.get('/user/unfollow/'+str(user_id), HTTP_AUTHORIZATION=token)
+
+    def user_unfollow_with_correct_response_method(self, user_id, token):
+        '''
+            Create a POST/user/unfollow HttpRequest
+        '''
+        return self.client.post('/user/unfollow/'+str(user_id), HTTP_AUTHORIZATION=token)
+
     def user_add_history_with_wrong_response_method(self, gif_id, token):
         '''
             Create a DELETE/user/history HttpRequest
@@ -1021,6 +1045,90 @@ class ViewsTests(TestCase):
         res = self.user_profile_with_correct_response_method("A string!")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1005)
+
+    def test_user_follow(self):
+        '''
+            Test user follow function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.user_follow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 14)
+        res = self.user_unfollow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.user_unfollow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 14)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_wrong_response_method(self):
+        '''
+            Test user follow with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_wrong_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.user_unfollow_with_wrong_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_invalid_token(self):
+        '''
+            Test user follow with invalid token
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+        helpers.add_token_to_white_list(token)
+        
+        res = self.user_follow_with_correct_response_method(user_id=self.user_id[0], token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_wrong_type(self):
+        '''
+            Test user follow with wrong type
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_correct_response_method(user_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        res = self.user_unfollow_with_correct_response_method(user_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_user_conflicts(self):
+        '''
+            Test user follow with user conflicts
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_correct_response_method(user_id=321, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+        res = self.user_follow_with_correct_response_method(user_id=1, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 13)
+        res = self.user_unfollow_with_correct_response_method(user_id=321, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+        res = self.user_unfollow_with_correct_response_method(user_id=1, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 13)
+        helpers.delete_token_from_white_list(token)
 
     def test_user_history(self):
         '''
