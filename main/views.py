@@ -484,9 +484,9 @@ def user_follow(req: HttpRequest, user_id: any):
                     user.followings = {}
                 if not follow_user.followers:
                     follow_user.followers = {}
-                user.followings[str(follow_user.id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                user.followings[str(follow_user.id)] = str(datetime.datetime.now())
                 user.save()
-                follow_user.followers[str(user.id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                follow_user.followers[str(user.id)] = str(datetime.datetime.now())
                 follow_user.save()
                 return request_success(data={"data": {}})
             else:
@@ -778,7 +778,8 @@ def image_detail(req: HttpRequest, gif_id: any):
                         "duration": gif.duration,
                         "pub_time": gif.pub_time,
                         "like": gif.likes,
-                        "is_liked": is_liked
+                        "is_liked": is_liked,
+                        "path": gif.giffile.file.path
                     }
                 }
             return request_success(return_data)
@@ -929,7 +930,7 @@ def image_like(req: HttpRequest, gif_id: any):
             if not user:
                 return unauthorized_error()
             if str(gif_id) not in user.favorites:
-                user.favorites[str(gif_id)] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                user.favorites[str(gif_id)] = str(datetime.datetime.now())
                 user.save()
                 gif.likes += 1
                 gif.save()

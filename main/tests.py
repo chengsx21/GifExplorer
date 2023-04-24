@@ -1,6 +1,9 @@
 '''
     test.py in django frame work
 '''
+import time
+import uuid
+import datetime
 from PIL import Image
 from django.core.files.base import ContentFile
 from django.test import TestCase
@@ -17,6 +20,9 @@ class ViewsTests(TestCase):
         self.user_password = ["Alice_123", "Bob_123", "Huaqiang_123"]
         self.user_salt = ["alicesalt", "bobsalt", "huaqiangsalt"]
         self.user_mail = ["Alice@163.com", "Bob@126.com", "huaqiang@126.com"]
+        self.user_verified_token = ["309bb939-145a-4793-91f6-d868bef1db3e",
+                           "309bb939-145a-4793-91f6-d868bef1db3f",
+                           "309bb939-145a-4793-91f6-d868bef1db3g"]
         self.user_id = []
         self.user_token = []
         self.user_num = len(self.user_name_list)
@@ -25,10 +31,11 @@ class ViewsTests(TestCase):
             password = self.user_password[i]
             salt = self.user_salt[i]
             mail = self.user_mail[i]
+            verified_token = self.user_verified_token[i]
             user = UserInfo.objects.create(user_name=user_name, password=helpers.hash_password(password), salt=salt, mail=mail)
             user.full_clean()
             user.save()
-            vertificates_user = UserVerification.objects.create(user_name=user_name, password=helpers.hash_password(password), salt=salt, mail=mail, is_verified=True)
+            vertificates_user = UserVerification.objects.create(user_name=user_name, token=verified_token, password=helpers.hash_password(password), salt=salt, mail=mail, is_verified=True)
             vertificates_user.full_clean()
             vertificates_user.save()
             self.user_id.append(user.id)
@@ -87,6 +94,18 @@ class ViewsTests(TestCase):
             "mail": mail
         }
         return self.client.post('/user/register', data=req, content_type="application/json")
+
+    def user_mail_verify_with_wrong_response_method(self, token):
+        '''
+            Create a POST/user/verify HttpRequest
+        '''
+        return self.client.post('/user/verify/'+token)
+
+    def user_mail_verify_with_correct_response_method(self, token):
+        '''
+            Create a GET/user/verify HttpRequest
+        '''
+        return self.client.get('/user/verify/'+token)
 
     def user_salt_with_wrong_response_method(self, user_name):
         '''
@@ -149,6 +168,51 @@ class ViewsTests(TestCase):
         }
         return self.client.post('/user/modifypassword', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
+    def user_avatar_with_wrong_response_method(self, url, token):
+        '''
+            Create a PUT/user/avatar HttpRequest
+        '''
+        with open(url, 'rb') as reader:
+            file_data = reader.read()
+        uploaded_file = SimpleUploadedFile(url, file_data)
+
+        req = {
+            'file': uploaded_file,
+        }
+        return self.client.put('/user/avatar', data=req, format='multipart', HTTP_AUTHORIZATION=token)
+
+    def user_avatar_with_file_not_exist(self, url, token):
+        '''
+            Create a POST/user/avatar HttpRequest
+        '''
+        with open(url, 'rb') as reader:
+            file_data = reader.read()
+        uploaded_file = SimpleUploadedFile(url, file_data)
+
+        req = {
+            'files': uploaded_file,
+        }
+        return self.client.post('/user/avatar', data=req, format='multipart', HTTP_AUTHORIZATION=token)
+
+    def user_avatar_with_correct_response_method(self, url, token):
+        '''
+            Create a POST/user/avatar HttpRequest
+        '''
+        with open(url, 'rb') as reader:
+            file_data = reader.read()
+        uploaded_file = SimpleUploadedFile(url, file_data)
+
+        req = {
+            'file': uploaded_file,
+        }
+        return self.client.post('/user/avatar', data=req, format='multipart', HTTP_AUTHORIZATION=token)
+
+    def user_avatar_get_with_correct_response_method(self, token):
+        '''
+            Create a GET/user/avatar HttpRequest
+        '''
+        return self.client.get('/user/avatar', HTTP_AUTHORIZATION=token)
+
     def user_logout_with_wrong_response_method(self, token):
         '''
             Create a GET/user/logout HttpRequest
@@ -172,6 +236,42 @@ class ViewsTests(TestCase):
             Create a POST/user/checklogin HttpRequest
         '''
         return self.client.post('/user/checklogin', data={}, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def user_profile_with_wrong_response_method(self, user_id):
+        '''
+            Create a POST/user/profile HttpRequest
+        '''
+        return self.client.post('/user/profile/'+user_id)
+
+    def user_profile_with_correct_response_method(self, user_id):
+        '''
+            Create a GET/user/profile HttpRequest
+        '''
+        return self.client.get('/user/profile/'+user_id)
+
+    def user_follow_with_wrong_response_method(self, user_id, token):
+        '''
+            Create a GET/user/follow HttpRequest
+        '''
+        return self.client.get('/user/follow/'+str(user_id), HTTP_AUTHORIZATION=token)
+
+    def user_follow_with_correct_response_method(self, user_id, token):
+        '''
+            Create a POST/user/follow HttpRequest
+        '''
+        return self.client.post('/user/follow/'+str(user_id), HTTP_AUTHORIZATION=token)
+
+    def user_unfollow_with_wrong_response_method(self, user_id, token):
+        '''
+            Create a GET/user/unfollow HttpRequest
+        '''
+        return self.client.get('/user/unfollow/'+str(user_id), HTTP_AUTHORIZATION=token)
+
+    def user_unfollow_with_correct_response_method(self, user_id, token):
+        '''
+            Create a POST/user/unfollow HttpRequest
+        '''
+        return self.client.post('/user/unfollow/'+str(user_id), HTTP_AUTHORIZATION=token)
 
     def user_add_history_with_wrong_response_method(self, gif_id, token):
         '''
@@ -205,10 +305,6 @@ class ViewsTests(TestCase):
         '''
             Create a POST/image/upload HttpRequest
         '''
-        # with open('/files/tests/Cake.jpg', 'rb') as f:
-        #     file_data = f.read()
-        # uploaded_file = SimpleUploadedFile('Strawberry.jpg', file_data)
-
         with open(url, 'rb') as reader:
             file_data = reader.read()
         uploaded_file = SimpleUploadedFile(url, file_data)
@@ -451,6 +547,30 @@ class ViewsTests(TestCase):
         '''
         return self.client.delete('/image/comment/delete/'+str(comment_id), HTTP_AUTHORIZATION=token)
 
+    def image_comment_like_with_wrong_response_method(self, comment_id, token):
+        '''
+            Create a GET/image/comment/like HttpRequest
+        '''
+        return self.client.get('/image/comment/like/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_like_with_correct_response_method(self, comment_id, token):
+        '''
+            Create a POST/image/comment/like HttpRequest
+        '''
+        return self.client.post('/image/comment/like/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_cancel_like_with_wrong_response_method(self, comment_id, token):
+        '''
+            Create a GET/image/comment/cancellike HttpRequest
+        '''
+        return self.client.get('/image/comment/cancellike/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_cancel_like_with_correct_response_method(self, comment_id, token):
+        '''
+            Create a POST/image/comment/cancellike HttpRequest
+        '''
+        return self.client.post('/image/comment/cancellike/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
     def image_allgifs_with_wrong_response_method(self, category):
         '''
             Create a GET/image/allgifs HttpRequest
@@ -524,6 +644,68 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 4)
 
+    def test_user_mail_verify(self):
+        '''
+            Test user mail verify
+        '''
+        verification_token = str(uuid.uuid4())
+        vertificated_user = UserVerification.objects.create(user_name="Helen6",
+                                                            token=verification_token,
+                                                            mail="Helen@163.com",
+                                                            password=helpers.hash_password("Helen123"),
+                                                            salt="6ev3hi91",
+                                                            created_at=datetime.datetime.now())
+        vertificated_user.save()
+
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+
+    def test_user_mail_verify_with_wrong_response_method(self):
+        '''
+            Test user mail verify with wrong response method
+        '''
+        verification_token = str(uuid.uuid4())
+        res = self.user_mail_verify_with_wrong_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_user_mail_verify_with_wrong_token(self):
+        '''
+            Test user mail verify with wrong token
+        '''
+        verification_token = str(uuid.uuid4())
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 15)
+
+    def test_user_mail_verify_with_verified_user(self):
+        '''
+            Test user mail verify with verified user
+        '''
+        verification_token = self.user_verified_token[0]
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 16)
+
+    def test_user_mail_verify_with_too_long_time(self):
+        '''
+            Test user mail verify with too long time
+        '''
+        verification_token = str(uuid.uuid4())
+        vertificated_user = UserVerification.objects.create(user_name="Helen123",
+                                                            token=verification_token,
+                                                            mail="Helen@qq.com",
+                                                            password=helpers.hash_password("Helen1314"),
+                                                            salt="vcs7d206",
+                                                            created_at=datetime.datetime.now())
+        vertificated_user.save()
+        time.sleep(6)
+
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 17)
+
     def test_user_salt(self):
         '''
             Test user salt
@@ -567,6 +749,19 @@ class ViewsTests(TestCase):
             Test user name conflict when registering
         '''
         res = self.user_register_with_correct_response_method(user_name="Alice", password="Alice_1234", salt="es123", mail="AliceBeauty@126.com")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1)
+
+        verification_token = str(uuid.uuid4())
+        vertificated_user = UserVerification.objects.create(user_name="Helen181",
+                                                            token=verification_token,
+                                                            mail="Helen@126.com",
+                                                            password="Helen5672",
+                                                            salt="7ca6dqe3",
+                                                            created_at=datetime.datetime.now())
+        vertificated_user.save()
+
+        res = self.user_register_with_correct_response_method(user_name="Helen181", password="Alice_1234", salt="es123", mail="AliceBeauty@126.com")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1)
 
@@ -673,6 +868,83 @@ class ViewsTests(TestCase):
             self.assertEqual(res.json()["code"], 4)
             helpers.delete_token_from_white_list(token)
 
+    def test_user_avatar(self):
+        '''
+            Test user avatar function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_avatar_with_correct_response_method(url="files/tests/avatar.jpeg", token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["id"], 1)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_avatar_with_wrong_response_method(self):
+        '''
+            Test user avatar with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_avatar_with_wrong_response_method(url="files/tests/avatar.jpeg", token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_avatar_with_wrong_token(self):
+        '''
+            Test user avatar with wrong token
+        '''
+        token = helpers.create_token(user_name="Not exist", user_id=100)
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_avatar_with_wrong_response_method(url="files/tests/avatar.jpeg", token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+        token = helpers.create_token(user_name="Not exist", user_id=1)
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_avatar_with_wrong_response_method(url="files/tests/avatar.jpeg", token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_avatar_with_invalid_file_format(self):
+        '''
+            Test user avatar with wrong token
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_avatar_with_file_not_exist(url="files/tests/avatar.jpeg", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 18)
+        res = self.user_avatar_with_file_not_exist(url="files/tests/Milk.gif", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 18)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_avatar_get(self):
+        '''
+            Test user avatar function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_avatar_with_correct_response_method(url="files/tests/avatar.jpeg", token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["id"], 1)
+        res = self.user_avatar_get_with_correct_response_method(token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["id"], 1)
+        helpers.delete_token_from_white_list(token)
+
     def test_user_logout(self):
         '''
             Test user logout function
@@ -739,6 +1011,124 @@ class ViewsTests(TestCase):
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.json()["code"], 1000)
             helpers.delete_token_from_white_list(token)
+
+    def test_user_profile(self):
+        '''
+            Test user profile function
+        '''
+        for i in range(self.user_num):
+            res = self.user_profile_with_correct_response_method(str(self.user_id[i]))
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+
+    def test_user_profile_with_wrong_response_method(self):
+        '''
+            Test user profile with wrong response method
+        '''
+        for i in range(self.user_num):
+            res = self.user_profile_with_wrong_response_method(str(self.user_id[i]))
+            self.assertEqual(res.status_code, 404)
+            self.assertEqual(res.json()["code"], 1000)
+
+    def test_user_profile_with_user_not_exists(self):
+        '''
+            Test user profile with user not exists
+        '''
+        res = self.user_profile_with_correct_response_method(str(114514))
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+
+    def test_user_profile_with_invalid_user_id(self):
+        '''
+            Test user profile with user not exists
+        '''
+        res = self.user_profile_with_correct_response_method("A string!")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+
+    def test_user_follow(self):
+        '''
+            Test user follow function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.user_follow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 14)
+        res = self.user_unfollow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.user_unfollow_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 14)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_wrong_response_method(self):
+        '''
+            Test user follow with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_wrong_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.user_unfollow_with_wrong_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_invalid_token(self):
+        '''
+            Test user follow with invalid token
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+        helpers.add_token_to_white_list(token)
+        
+        res = self.user_follow_with_correct_response_method(user_id=self.user_id[0], token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_wrong_type(self):
+        '''
+            Test user follow with wrong type
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_correct_response_method(user_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        res = self.user_unfollow_with_correct_response_method(user_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_follow_with_user_conflicts(self):
+        '''
+            Test user follow with user conflicts
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_follow_with_correct_response_method(user_id=321, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+        res = self.user_follow_with_correct_response_method(user_id=1, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 13)
+        res = self.user_unfollow_with_correct_response_method(user_id=321, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+        res = self.user_unfollow_with_correct_response_method(user_id=1, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 13)
+        helpers.delete_token_from_white_list(token)
 
     def test_user_history(self):
         '''
@@ -1310,6 +1700,75 @@ class ViewsTests(TestCase):
         res = self.image_comment_delete_with_comment_not_found(comment_id=100, token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 11)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like(self):
+        '''
+            Test image comment like
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_parent_with_correct_response_method(gif_id=1, token=token)
+        comment_id = res.json()["data"]["id"]
+        res = self.image_comment_like_with_correct_response_method(comment_id=comment_id, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_get_with_correct_response_method(gif_id=1, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"][0]["like"], 1)
+        res = self.image_comment_cancel_like_with_correct_response_method(comment_id=comment_id, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_get_with_correct_response_method(gif_id=1, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"][0]["like"], 0)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like_with_wrong_response_method(self):
+        '''
+            Test image comment like with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_like_with_wrong_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.image_comment_cancel_like_with_wrong_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like_with_invalid_token(self):
+        '''
+            Test image comment like with invalid token
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+
+        res = self.image_comment_like_with_correct_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.image_comment_like_with_correct_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_like_with_wrong_type(self):
+        '''
+            Test image comment like with wrong type
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_like_with_correct_response_method(comment_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        res = self.image_comment_cancel_like_with_correct_response_method(comment_id="string", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
         helpers.delete_token_from_white_list(token)
 
     def test_image_allgifs(self):
