@@ -1,8 +1,12 @@
 '''
     configure for the app
 '''
+from GifExplorer.settings import DEBUG
 
-USER_VERIFICATION_MAX_TIME = 300
+if not DEBUG:
+    USER_VERIFICATION_MAX_TIME = 300
+else:
+    USER_VERIFICATION_MAX_TIME = 6
 
 MAX_GIFS_PER_PAGE = 20
 

@@ -1,6 +1,9 @@
 '''
     test.py in django frame work
 '''
+import time
+import uuid
+import datetime
 from PIL import Image
 from django.core.files.base import ContentFile
 from django.test import TestCase
@@ -17,6 +20,9 @@ class ViewsTests(TestCase):
         self.user_password = ["Alice_123", "Bob_123", "Huaqiang_123"]
         self.user_salt = ["alicesalt", "bobsalt", "huaqiangsalt"]
         self.user_mail = ["Alice@163.com", "Bob@126.com", "huaqiang@126.com"]
+        self.user_verified_token = ["309bb939-145a-4793-91f6-d868bef1db3e",
+                           "309bb939-145a-4793-91f6-d868bef1db3f",
+                           "309bb939-145a-4793-91f6-d868bef1db3g"]
         self.user_id = []
         self.user_token = []
         self.user_num = len(self.user_name_list)
@@ -25,10 +31,11 @@ class ViewsTests(TestCase):
             password = self.user_password[i]
             salt = self.user_salt[i]
             mail = self.user_mail[i]
+            verified_token = self.user_verified_token[i]
             user = UserInfo.objects.create(user_name=user_name, password=helpers.hash_password(password), salt=salt, mail=mail)
             user.full_clean()
             user.save()
-            vertificates_user = UserVerification.objects.create(user_name=user_name, password=helpers.hash_password(password), salt=salt, mail=mail, is_verified=True)
+            vertificates_user = UserVerification.objects.create(user_name=user_name, token=verified_token, password=helpers.hash_password(password), salt=salt, mail=mail, is_verified=True)
             vertificates_user.full_clean()
             vertificates_user.save()
             self.user_id.append(user.id)
@@ -87,6 +94,18 @@ class ViewsTests(TestCase):
             "mail": mail
         }
         return self.client.post('/user/register', data=req, content_type="application/json")
+
+    def user_mail_verify_with_wrong_response_method(self, token):
+        '''
+            Create a POST/user/verify HttpRequest
+        '''
+        return self.client.post('/user/verify/'+token)
+
+    def user_mail_verify_with_correct_response_method(self, token):
+        '''
+            Create a GET/user/verify HttpRequest
+        '''
+        return self.client.get('/user/verify/'+token)
 
     def user_salt_with_wrong_response_method(self, user_name):
         '''
@@ -548,6 +567,68 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 4)
 
+    def test_user_mail_verify(self):
+        '''
+            Test user mail verify
+        '''
+        verification_token = str(uuid.uuid4())
+        vertificated_user = UserVerification.objects.create(user_name="Helen6",
+                                                            token=verification_token,
+                                                            mail="Helen@163.com",
+                                                            password=helpers.hash_password("Helen123"),
+                                                            salt="6ev3hi91",
+                                                            created_at=datetime.datetime.now())
+        vertificated_user.save()
+
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+
+    def test_user_mail_verify_with_wrong_response_method(self):
+        '''
+            Test user mail verify with wrong response method
+        '''
+        verification_token = str(uuid.uuid4())
+        res = self.user_mail_verify_with_wrong_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_user_mail_verify_with_wrong_token(self):
+        '''
+            Test user mail verify with wrong token
+        '''
+        verification_token = str(uuid.uuid4())
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 15)
+
+    def test_user_mail_verify_with_verified_user(self):
+        '''
+            Test user mail verify with verified user
+        '''
+        verification_token = self.user_verified_token[0]
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 16)
+
+    def test_user_mail_verify_with_too_long_time(self):
+        '''
+            Test user mail verify with too long time
+        '''
+        verification_token = str(uuid.uuid4())
+        vertificated_user = UserVerification.objects.create(user_name="Helen123",
+                                                            token=verification_token,
+                                                            mail="Helen@qq.com",
+                                                            password=helpers.hash_password("Helen1314"),
+                                                            salt="vcs7d206",
+                                                            created_at=datetime.datetime.now())
+        vertificated_user.save()
+        time.sleep(6)
+
+        res = self.user_mail_verify_with_correct_response_method(token=verification_token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 17)
+
     def test_user_salt(self):
         '''
             Test user salt
@@ -591,6 +672,19 @@ class ViewsTests(TestCase):
             Test user name conflict when registering
         '''
         res = self.user_register_with_correct_response_method(user_name="Alice", password="Alice_1234", salt="es123", mail="AliceBeauty@126.com")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1)
+
+        verification_token = str(uuid.uuid4())
+        vertificated_user = UserVerification.objects.create(user_name="Helen181",
+                                                            token=verification_token,
+                                                            mail="Helen@126.com",
+                                                            password="Helen5672",
+                                                            salt="7ca6dqe3",
+                                                            created_at=datetime.datetime.now())
+        vertificated_user.save()
+
+        res = self.user_register_with_correct_response_method(user_name="Helen181", password="Alice_1234", salt="es123", mail="AliceBeauty@126.com")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1)
 
