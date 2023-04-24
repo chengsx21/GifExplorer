@@ -85,7 +85,7 @@ def user_register(req: HttpRequest):
                 user.delete()
 
             verification_token = str(uuid.uuid4())
-            print(verification_token)
+            # print(verification_token)
             verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/signup/verify?token={verification_token}'
             vertificated_user = UserVerification.objects.create(user_name=user_name,
                                                                 token=verification_token,
