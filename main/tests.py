@@ -427,6 +427,30 @@ class ViewsTests(TestCase):
         '''
         return self.client.get('/image/comment/'+str(gif_id), HTTP_AUTHORIZATION=token)
 
+    def image_comment_delete_with_wrong_response_method(self, comment_id, token):
+        '''
+            Create a PUT/image/comment/delete HttpRequest
+        '''
+        return self.client.put('/image/comment/delete/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_delete_with_comment_not_found(self, comment_id, token):
+        '''
+            Create a DELETE/image/comment/delete HttpRequest
+        '''
+        return self.client.delete('/image/comment/delete/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_delete_with_wrong_token(self, comment_id, token):
+        '''
+            Create a DELETE/image/comment/delete HttpRequest
+        '''
+        return self.client.delete('/image/comment/delete/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
+    def image_comment_delete_with_correct_response_method(self, comment_id, token):
+        '''
+            Create a DELETE/image/comment/delete HttpRequest
+        '''
+        return self.client.delete('/image/comment/delete/'+str(comment_id), HTTP_AUTHORIZATION=token)
+
     def image_allgifs_with_wrong_response_method(self, category):
         '''
             Create a GET/image/allgifs HttpRequest
@@ -1205,7 +1229,7 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
         helpers.delete_token_from_white_list(token)
-        
+
     def test_image_comment_get_with_gif_not_found(self):
         '''
             Test image comment get with gif not found
@@ -1218,6 +1242,75 @@ class ViewsTests(TestCase):
         self.assertEqual(res.json()["code"], 9)
         helpers.delete_token_from_white_list(token)
 
+    def test_image_comment_delete(self):
+        '''
+            Test image comment delete
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_parent_with_correct_response_method(gif_id=3, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_parent_with_correct_response_method(gif_id=3, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_get_with_correct_response_method(gif_id=3, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 2)
+        comment_id = res.json()["data"][0]["id"]
+        res = self.image_comment_delete_with_correct_response_method(comment_id=comment_id, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.image_comment_get_with_correct_response_method(gif_id=3, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 1)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_delete_with_wrong_token(self):
+        '''
+            Test image comment delete with wrong token
+        '''
+        token = self.user_token[0]
+        wrong_token = helpers.create_token(user_name="NotExist!", user_id=114514)
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_parent_with_correct_response_method(gif_id=3, token=token)
+        res = self.image_comment_get_with_correct_response_method(gif_id=3, token=token)
+        comment_id = res.json()["data"][0]["id"]
+        res = self.image_comment_delete_with_wrong_token(comment_id=comment_id, token=wrong_token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.image_comment_delete_with_correct_response_method(comment_id=comment_id, token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_delete_with_wrong_response_method(self):
+        '''
+            Test image comment delete with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_delete_with_wrong_response_method(comment_id=1, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_comment_delete_with_comment_not_found(self):
+        '''
+            Test image comment delete with comment not found
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_comment_delete_with_comment_not_found(comment_id=100, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 11)
+        helpers.delete_token_from_white_list(token)
 
     def test_image_allgifs(self):
         '''
