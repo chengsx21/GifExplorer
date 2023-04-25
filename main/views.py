@@ -4,6 +4,7 @@
 import zipfile
 import os
 import uuid
+import math
 import json
 from wsgiref.util import FileWrapper
 import io
@@ -681,6 +682,20 @@ def image_upload(req: HttpRequest):
             gif.height = gif_file.file.height
             gif.name = name
             gif.save()
+
+            resize_name = "resize_" + name
+            resize_path = gif_file.file.path.rsplit("/", 1)[0] + "/" + resize_name
+            with Image.open(gif.giffile.file.path) as img:
+                frames = []
+                max_size = min(gif_file.file.width, gif_file.file.height, 150)
+                ratio = gif_file.file.width / gif_file.file.height
+                new_width = int(max_size * math.sqrt(ratio))
+                new_height = int(max_size / math.sqrt(ratio))
+                resize_size = (new_width, new_height)
+                for frame in ImageSequence.Iterator(img):
+                    resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                    frames.append(resized_frame)
+                frames[0].save(resize_path, save_all=True, append_images=frames[1:])
 
             return_data = {
                 "data": {
