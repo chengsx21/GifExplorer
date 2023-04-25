@@ -13,11 +13,11 @@ import imghdr
 import imageio
 import imagehash
 from jwt import DecodeError
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont, ImageSequence
 from celery import shared_task
 from celery.result import AsyncResult
 from django.core.files.base import ContentFile
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
 from django.utils.html import format_html
@@ -85,7 +85,7 @@ def user_register(req: HttpRequest):
                 user.delete()
 
             verification_token = str(uuid.uuid4())
-            # print(verification_token)
+            print(verification_token)
             verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/signup/verify?token={verification_token}'
             vertificated_user = UserVerification.objects.create(user_name=user_name,
                                                                 token=verification_token,
@@ -986,7 +986,7 @@ def image_cancel_like(req: HttpRequest, gif_id: any):
         return internal_error(str(error))
 
 @csrf_exempt
-def from_video_to_gif(req: HttpRequest):
+def image_upload_video(req: HttpRequest):
     '''
     request:
         {
@@ -1046,7 +1046,7 @@ def from_video_to_gif(req: HttpRequest):
                 for chunk in video_file.chunks():
                     temp_video.write(chunk)
 
-            task = from_video_to_gif_task.delay(title=title, category=category, tags=tags, user=user.id, hashed_name=hashed_name)
+            task = image_upload_video_task.delay(title=title, category=category, tags=tags, user=user.id, hashed_name=hashed_name)
             return_data = {
                 "data": {
                     "task_id": task.id,
@@ -1060,7 +1060,7 @@ def from_video_to_gif(req: HttpRequest):
         return internal_error(str(error))
 
 @shared_task
-def from_video_to_gif_task(*, title: str, category: str, tags: list, user: int, hashed_name: str):
+def image_upload_video_task(*, title: str, category: str, tags: list, user: int, hashed_name: str):
     '''
         mp4/mkv -> gif
     '''
@@ -1089,19 +1089,17 @@ def from_video_to_gif_task(*, title: str, category: str, tags: list, user: int, 
     os.remove(hashed_name + ".gif")
 
     return_data = {
-        "data": {
-            "id": gif.id,
-            "width": gif.width,
-            "height": gif.height,
-            "duration": gif.duration,
-            "uploader": user,
-            "pub_time": gif.pub_time
-        }
+        "id": gif.id,
+        "width": gif.width,
+        "height": gif.height,
+        "duration": gif.duration,
+        "uploader": user,
+        "pub_time": gif.pub_time
     }
     return return_data
 
 @csrf_exempt
-def check_from_video_to_gif_task_status(req: HttpRequest, task_id):
+def image_upload_video_check(req: HttpRequest, task_id):
     '''
     request:
         None
@@ -1118,29 +1116,141 @@ def check_from_video_to_gif_task_status(req: HttpRequest, task_id):
             "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
             "task_status": "SUCCESS",
             "task_result": {
-                "data": {
-                    "id": 6,
-                    "width": 1280,
-                    "height": 720,
-                    "duration": 5.2,
-                    "uploader": 1,
-                    "pub_time": "2023-04-24T01:22:07.326363Z"
-                }
+                "id": 6,
+                "width": 1280,
+                "height": 720,
+                "duration": 5.2,
+                "uploader": 1,
+                "pub_time": "2023-04-24T01:22:07.326363Z"
             }
         }
     '''
     try:
         if req.method == "GET":
             task_result = AsyncResult(task_id)
-            response_data = {
-                "task_id": task_id,
-                "task_status": task_result.status,
+            return_data = {
+                "data": {
+                    "task_id": task_id,
+                    "task_status": task_result.status
+                }
             }
-
             if task_result.status == 'SUCCESS':
-                response_data['task_result'] = task_result.result
+                return_data["data"]['task_result'] = task_result.result
 
-            return JsonResponse(response_data)
+            return request_success(return_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@csrf_exempt
+def image_watermark(req: HttpRequest, gif_id: any):
+    '''
+    request:
+        user token
+    '''
+    try:
+        if req.method == "POST":
+            try:
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+            except DecodeError as error:
+                print(error)
+                return unauthorized_error(str(error))
+
+            gif = GifMetadata.objects.filter(id=gif_id).first()
+            if not gif:
+                return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+            user = UserInfo.objects.filter(user_name=token["user_name"]).first()
+            if not user or user.id != gif.uploader:
+                return unauthorized_error()
+
+            task = image_watermark_task.delay(gif_id=gif_id, user_name=user.user_name)
+            return_data = {
+                "data": {
+                    "task_id": task.id,
+                    "task_status": task.status
+                }
+            }
+            return request_success(data=return_data)
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
+
+@shared_task
+def image_watermark_task(gif_id, user_name):
+    '''
+        add watermark to a gif in the database
+    '''
+    gif = GifMetadata.objects.filter(id=gif_id).first()
+    text = '@' + user_name
+    font_path = "files/tests/Songti.ttf"
+    font_size = 16
+    with Image.open(gif.giffile.file.path) as img:
+        frames = []
+        for frame in ImageSequence.Iterator(img):
+            watermark_image = Image.new('RGBA', frame.size, (255, 255, 255, 0))
+            draw = ImageDraw.Draw(watermark_image, 'RGBA')
+            font = ImageFont.truetype(font_path, font_size, encoding="unic")
+            text_width, text_height = draw.textsize(text=text, font=font)
+            x_axis = frame.width - text_width - 10
+            y_axis = frame.height - text_height - 10
+            if x_axis < 0 or y_axis < 0:
+                return_data = {
+                    "code": 20,
+                    "info": "GIF_TOO_SMALL",
+                    "data": {
+                        "id": gif.id
+                    }
+                }
+                return return_data
+            draw.text((x_axis, y_axis), text, font=font, fill=(0, 0, 0, 255))
+            frame = Image.alpha_composite(frame.convert('RGBA'), watermark_image)
+            frames.append(frame)
+        frames[0].save(gif.giffile.file.path, save_all=True, append_images=frames[1:])
+    return_data = {
+        "id": gif.id
+    }
+    return return_data
+
+@csrf_exempt
+def image_watermark_check(req: HttpRequest, task_id):
+    '''
+    request:
+        None
+    response:
+        {
+            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+            "task_status": "PENDING"
+        }
+        {
+            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+            "task_status": "STARTED"
+        }
+        {
+            "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
+            "task_status": "SUCCESS",
+            "task_result": {
+                "id": 6
+            }
+        }
+    '''
+    try:
+        if req.method == "GET":
+            task_result = AsyncResult(task_id)
+            return_data = {
+                "data": {
+                    "task_id": task_id,
+                    "task_status": task_result.status
+                }
+            }
+            if task_result.status == 'SUCCESS':
+                return_data["data"]['task_result'] = task_result.result
+            return request_success(return_data)
         return not_found_error()
     except Exception as error:
         print(error)
