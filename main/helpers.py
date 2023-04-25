@@ -178,11 +178,13 @@ def show_user_read_history_pages(user: UserInfo, page: int):
         user = UserInfo.objects.filter(id=gif.uploader).first()
         if gif:
             gif_list.append({
-                "id": gif.id,
-                "title": gif.title,
-                "uploader": user.user_name,
-                "pub_time": gif.pub_time,
-                "like": gif.likes,
+                "data": {
+                    "id": gif.id,
+                    "title": gif.title,
+                    "uploader": user.user_name,
+                    "pub_time": gif.pub_time,
+                    "like": gif.likes
+                },
                 "visit_time": read_time
             })
     return gif_list, math.ceil(len(read_history_list) / MAX_GIFS_PER_PAGE)
