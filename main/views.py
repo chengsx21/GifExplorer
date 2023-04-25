@@ -1524,3 +1524,104 @@ def image_allgifs(req: HttpRequest):
     except Exception as error:
         print(error)
         return internal_error(str(error))
+
+@csrf_exempt
+def image_search(req: HttpRequest):
+    '''
+    request:
+        {
+            "target": "title",
+            "keyword": "cat picture",
+            "filter": [
+                {"range": {"width": {"gte": 0, "lte": 100}}},
+                {"range": {"height": {"gte": 0, "lte": 100}}},
+                {"range": {"duration": {"gte": 0, "lte": 100}}}
+            ],
+            "category": "sports",
+            "tags": ["animal", "cat"],
+            "type": "perfect",
+            "sort": true
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": [
+                {
+                    "id": 519,
+                    "title": "Strong Man",
+                    "category": "sports",
+                    "uploader": "AliceBurn", 
+                    "pub_time": "2023-03-21T19:02:16.305Z",
+                }
+            ]
+        }
+        格式错误：
+        {
+            "code": 1005, 
+            "info": "INVALID_FORMAT",
+            "data": {}
+        }
+    '''
+    pass
+
+    try:
+        if req.method == "POST":
+            # 连接搜索模块
+            search_engine = helpers.SEARCH_ENGINE
+
+            try:
+                body = json.loads(req.body.decode("utf-8"))
+            except (TypeError, KeyError) as error:
+                print(error)
+                return format_error()
+            try:
+                search_type = body["type"]
+            except:
+                search_type = "perfect"  # 默认精确搜索
+
+            # # 从前端的请求中取出信息
+            # try:
+            #     body = json.loads(req.body.decode("utf-8"))
+            #     keyword = body['query']
+            #     include = body['include']
+            #     exclude = body['exclude']
+            #     try:
+            #         sort = body['sort'] # 是否按时间排序，默认为 False
+            #     except Exception:
+            #         sort = False 
+            #     # （暂定）按页返回
+            #     start_page = int(body['page']) - 1
+            #     start_page = min(max(start_page, 0),5000)
+            #     # 页码不是正整数
+            #     if not isinstance(start_page,int):
+            #         return request_failed(code=5, info='INVALID_PAGE', status_code=400)
+            # except Exception as error:
+            #     return format_error()
+
+            if search_type == "perfect":
+                # 尝试弹出键为 'key4' 的值，如果不存在则返回默认值 'default'
+                _ = body.pop('fuzzy', 'default')
+                id_list = search_engine.search_perfect(request=body)
+            elif search_type == "fuzzy":
+                id_list = search_engine.search_partial(keyword=body['keyword'], target=body['target'])
+                
+            if len(id_list) == 0:
+                return request_success(data={})
+            gifs_list = []
+            for id in id_list:
+                gif = GifMetadata.objects.filter(id=id).first()
+                user = UserInfo.objects.filter(id=gif.uploader).first()
+                gif_dict = {
+                    "id": gif.id,
+                    "title": gif.title,
+                    "category": gif.category,
+                    "uploader": user.user_name,
+                    "pub_time": gif.pub_time
+                }
+                gifs_list.append(gif_dict)
+            return request_success({"data": gifs_list})
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))

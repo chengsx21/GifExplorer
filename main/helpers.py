@@ -193,3 +193,5 @@ def is_valid_video(file):
     '''
     mime = magic.from_buffer(file.read(1024), mime=True)
     return mime in ['video/x-matroska', 'video/mp4']
+
+SEARCH_ENGINE = ElasticSearchEngine()
