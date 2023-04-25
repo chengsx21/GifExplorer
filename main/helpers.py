@@ -6,11 +6,28 @@ import io
 import re
 import base64
 import math
+from functools import wraps
 import magic
 from PIL import Image
 import jwt
+from utils.utils_request import internal_error
 from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
 from .models import UserInfo, GifMetadata, GifFingerprint
+
+def handle_errors(view_func):
+    '''
+        Handle errors
+    '''
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        try:
+            response = view_func(request, *args, **kwargs)
+        except Exception as error:
+            print(error)
+            response = internal_error(str(error))
+        return response
+    return wrapper
+
 
 def is_english(char: str):
     '''
@@ -161,11 +178,13 @@ def show_user_read_history_pages(user: UserInfo, page: int):
         user = UserInfo.objects.filter(id=gif.uploader).first()
         if gif:
             gif_list.append({
-                "id": gif.id,
-                "title": gif.title,
-                "uploader": user.user_name,
-                "pub_time": gif.pub_time,
-                "like": gif.likes,
+                "data": {
+                    "id": gif.id,
+                    "title": gif.title,
+                    "uploader": user.user_name,
+                    "pub_time": gif.pub_time,
+                    "like": gif.likes
+                },
                 "visit_time": read_time
             })
     return gif_list, math.ceil(len(read_history_list) / MAX_GIFS_PER_PAGE)

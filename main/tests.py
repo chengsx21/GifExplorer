@@ -1088,7 +1088,7 @@ class ViewsTests(TestCase):
         '''
         token = helpers.create_token(user_name="NotExist!", user_id=114514)
         helpers.add_token_to_white_list(token)
-        
+
         res = self.user_follow_with_correct_response_method(user_id=self.user_id[0], token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
