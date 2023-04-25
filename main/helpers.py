@@ -180,10 +180,17 @@ def show_user_read_history_pages(user: UserInfo, page: int):
             gif_list.append({
                 "data": {
                     "id": gif.id,
+                    "name": gif.name,
                     "title": gif.title,
+                    "width": gif.width,
+                    "height": gif.height,
+                    "duration": gif.duration,
                     "uploader": user.user_name,
-                    "pub_time": gif.pub_time,
-                    "like": gif.likes
+                    "uploader_id": user.id,
+                    "category": gif.category,
+                    "tags": gif.tags,
+                    "like": gif.likes,
+                    "pub_time": gif.pub_time
                 },
                 "visit_time": read_time
             })
