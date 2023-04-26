@@ -22,7 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
 from django.core.files import File
 from django.utils.html import format_html
-from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success
+from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success, internal_error
 from GifExplorer import settings
 from . import helpers
 from .helpers import handle_errors
@@ -1765,3 +1765,118 @@ def image_allgifs(req: HttpRequest):
             gifs_list.append(gif_dict)
         return request_success({"data": gifs_list})
     return not_found_error()
+
+@csrf_exempt
+def image_search(req: HttpRequest):
+    '''
+    request:
+        {
+            "target": "title",
+            "keyword": "cat picture",
+            "filter": [
+                {"range": {"width": {"gte": 0, "lte": 100}}},
+                {"range": {"height": {"gte": 0, "lte": 100}}},
+                {"range": {"duration": {"gte": 0, "lte": 100}}}
+            ],
+            "category": "sports",
+            "tags": ["animal", "cat"],
+            "type": "perfect",
+            "page": 2
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "page_count": 15,
+                "page_data": [
+                    {
+                        "id": 117,
+                        "name": "pretty.gif",
+                        "title": "Pretty Gif",
+                        "width": 400,
+                        "height": 250,
+                        "duration": 5.2,
+                        "uploader": "Bob",
+                        "uploader_id": 4,
+                        "category": "beauty",
+                        "tags": ["beauty", "fun"],
+                        "like": 412,
+                        "pub_time": "2023-04-25T17:13:55.648217Z"
+                    }
+                ]
+            }
+        }
+        格式错误：
+        {
+            "code": 1005, 
+            "info": "INVALID_FORMAT",
+            "data": {}
+        }
+        页码非正整数：
+         {
+            "code": 5,
+            "info": "INVALID_PAGE",
+            "data": {}
+        }
+    '''
+
+    try:
+        if req.method == "POST":
+            try:
+                body = json.loads(req.body.decode("utf-8"))
+            except (TypeError, KeyError) as error:
+                print(error)
+                return format_error()
+            try:
+                page = body["page"]
+            except (TypeError, ValueError) as error:
+                print(error)
+                return request_failed(5, "INVALID_PAGE", data={"data": {}})
+            try:
+                search_type = body["type"]
+            except:
+                search_type = "perfect"  # 默认精确搜索
+
+            # # 从前端的请求中取出信息
+            # try:
+            #     body = json.loads(req.body.decode("utf-8"))
+            #     keyword = body['query']
+            #     include = body['include']
+            #     exclude = body['exclude']
+            #     try:
+            #         sort = body['sort'] # 是否按时间排序，默认为 False
+            #     except Exception:
+            #         sort = False 
+            #     # （暂定）按页返回
+            #     start_page = int(body['page']) - 1
+            #     start_page = min(max(start_page, 0),5000)
+            #     # 页码不是正整数
+            #     if not isinstance(start_page,int):
+            #         return request_failed(code=5, info='INVALID_PAGE', status_code=400)
+            # except Exception as error:
+            #     return format_error()
+
+            # 连接搜索模块
+            search_engine = helpers.SEARCH_ENGINE
+
+            if search_type == "perfect":
+                # 尝试弹出键为 'fuzzy' 的值，如果不存在则返回默认值 'default'
+                _ = body.pop('fuzzy', 'default')
+                id_list = search_engine.search_perfect(request=body)
+            elif search_type == "fuzzy":
+                id_list = search_engine.search_partial(keyword=body['keyword'], target=body['target'])
+            
+            gif_list, pages = helpers.show_search_page(id_list, page - 1)
+            
+            return request_success(data=
+                {
+                    "data": {
+                        "page_count": pages,
+                        "page_data": gif_list
+                    }
+                })
+        return not_found_error()
+    except Exception as error:
+        print(error)
+        return internal_error(str(error))
