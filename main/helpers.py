@@ -13,6 +13,7 @@ import jwt
 from utils.utils_request import internal_error
 from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
 from .models import UserInfo, GifMetadata, GifFingerprint
+from .search import ElasticSearchEngine
 
 def handle_errors(view_func):
     '''
@@ -229,3 +230,37 @@ def is_valid_video(file):
     '''
     mime = magic.from_buffer(file.read(1024), mime=True)
     return mime in ['video/x-matroska', 'video/mp4']
+
+def show_search_page(gif_id_list, page: int):
+    '''
+        Show search page
+    '''
+    if not gif_id_list:
+        return [], 0
+    begin = page * MAX_GIFS_PER_PAGE
+    end = (page + 1) * MAX_GIFS_PER_PAGE
+
+    gif_list = []
+    for gif_id in gif_id_list[begin:end]:
+        gif = GifMetadata.objects.filter(id=int(gif_id)).first()
+        if gif:
+            user = UserInfo.objects.filter(id=gif.uploader).first()
+            gif_list.append({
+                "data": {
+                    "id": gif.id,
+                    "name": gif.name,
+                    "title": gif.title,
+                    "width": gif.width,
+                    "height": gif.height,
+                    "duration": gif.duration,
+                    "uploader": user.user_name,
+                    "uploader_id": user.id,
+                    "category": gif.category,
+                    "tags": gif.tags,
+                    "like": gif.likes,
+                    "pub_time": gif.pub_time
+                },
+            })
+    return gif_list, math.ceil(len(gif_id_list) / MAX_GIFS_PER_PAGE)
+
+SEARCH_ENGINE = ElasticSearchEngine()

@@ -5,6 +5,7 @@ django-cors-headers
 # mysqlclient==2.1.0
 
 python-magic
+elasticsearch==7.13.3
 libmagic
 imagehash
 imageio
