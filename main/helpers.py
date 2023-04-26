@@ -6,11 +6,28 @@ import io
 import re
 import base64
 import math
+from functools import wraps
 import magic
 from PIL import Image
 import jwt
+from utils.utils_request import internal_error
 from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
 from .models import UserInfo, GifMetadata, GifFingerprint
+
+def handle_errors(view_func):
+    '''
+        Handle errors
+    '''
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        try:
+            response = view_func(request, *args, **kwargs)
+        except Exception as error:
+            print(error)
+            response = internal_error(str(error))
+        return response
+    return wrapper
+
 
 def is_english(char: str):
     '''
@@ -25,6 +42,16 @@ def is_chinese(char: str):
         Test if char is chinese
     '''
     return re.match(".*[\u3400-\u4DB5\u4E00-\u9FCB\uF900-\uFA6A].*", char)
+
+def is_float_string(sentence):
+    '''
+        Test if sentence is float string
+    '''
+    try:
+        float(sentence)
+        return True
+    except ValueError:
+        return False
 
 def user_username_checker(user_name: str):
     '''
@@ -161,11 +188,20 @@ def show_user_read_history_pages(user: UserInfo, page: int):
         user = UserInfo.objects.filter(id=gif.uploader).first()
         if gif:
             gif_list.append({
-                "id": gif.id,
-                "title": gif.title,
-                "uploader": user.user_name,
-                "pub_time": gif.pub_time,
-                "like": gif.likes,
+                "data": {
+                    "id": gif.id,
+                    "name": gif.name,
+                    "title": gif.title,
+                    "width": gif.width,
+                    "height": gif.height,
+                    "duration": gif.duration,
+                    "uploader": user.user_name,
+                    "uploader_id": user.id,
+                    "category": gif.category,
+                    "tags": gif.tags,
+                    "like": gif.likes,
+                    "pub_time": gif.pub_time
+                },
                 "visit_time": read_time
             })
     return gif_list, math.ceil(len(read_history_list) / MAX_GIFS_PER_PAGE)
@@ -193,5 +229,3 @@ def is_valid_video(file):
     '''
     mime = magic.from_buffer(file.read(1024), mime=True)
     return mime in ['video/x-matroska', 'video/mp4']
-
-SEARCH_ENGINE = ElasticSearchEngine()
