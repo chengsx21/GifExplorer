@@ -8,7 +8,6 @@ import math
 import json
 from wsgiref.util import FileWrapper
 import io
-# import time
 import datetime
 import imghdr
 import imageio
@@ -21,6 +20,7 @@ from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
+from django.core.files import File
 from django.utils.html import format_html
 from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success
 from GifExplorer import settings
@@ -643,21 +643,23 @@ def image_upload(req: HttpRequest):
             if not durations[0]:
                 durations = [100] * image.n_frames
             total_time = sum(durations) / 1000.0
+        width = gif_file.file.width
+        height = gif_file.file.height
+        path = gif_file.file.path
         gif.duration = total_time
-        gif.width = gif_file.file.width
-        gif.height = gif_file.file.height
+        gif.width = width
+        gif.height = height
         gif.name = name
         gif.save()
 
-        resize_name = "resize_" + name
-        resize_path = gif_file.file.path.rsplit("/", 1)[0] + "/" + resize_name
-        with Image.open(gif.giffile.file.path) as img:
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + name
+        max_size = min(width, height, 150)
+        ratio = width / height
+        new_width = int(max_size * math.sqrt(ratio))
+        new_height = int(max_size / math.sqrt(ratio))
+        resize_size = (new_width, new_height)
+        with Image.open(path) as img:
             frames = []
-            max_size = min(gif_file.file.width, gif_file.file.height, 150)
-            ratio = gif_file.file.width / gif_file.file.height
-            new_width = int(max_size * math.sqrt(ratio))
-            new_height = int(max_size / math.sqrt(ratio))
-            resize_size = (new_width, new_height)
             for frame in ImageSequence.Iterator(img):
                 resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
                 frames.append(resized_frame)
@@ -675,6 +677,191 @@ def image_upload(req: HttpRequest):
                 "pub_time": gif.pub_time
             }
         }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def image_upload_resize(req: HttpRequest):
+    '''
+    request:
+        same as image_upload except that the resize parameter is added
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "id": 1,
+                "width": 640,
+                "height": 480,
+                "duration": 5.2,
+                "uploader": 3, 
+                "pub_time": "2023-03-21T19:02:16.305Z",
+                }
+        }
+    '''
+    if req.method == "POST":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        try:
+            title = req.POST.get("title")
+            category = req.POST.get("category")
+            tags = req.POST.getlist("tags")[0]
+            tags = [tag.strip() for tag in tags.split(",")]
+            ratio = req.POST.get("ratio")
+        except (TypeError, KeyError) as error:
+            print(error)
+            return format_error(str(error))
+
+        if not helpers.is_float_string(ratio):
+            return request_failed(21, "INVALID_RATIO", data={"data": {}})
+        if not (title and category and tags and isinstance(title, str) and isinstance(category, str) and isinstance(tags, list)):
+            return format_error()
+        for tag in tags:
+            if not isinstance(tag, str):
+                return format_error()
+
+        user = UserInfo.objects.filter(id=token["id"]).first()
+        if not user:
+            return unauthorized_error()
+
+        file_contents = req.FILES.get("file").read()
+        file = req.FILES.get("file")
+        name = file.name
+        img = Image.open(io.BytesIO(file_contents))
+        width, height = img.size
+        if file_contents[0:6] != b'GIF89a' and file_contents[0:6] != b'GIF87a':
+            return request_failed(10, "INVALID_GIF", data={"data": {}})
+
+        with open(name, 'wb') as temp_gif:
+            for chunk in file.chunks():
+                temp_gif.write(chunk)
+        task = image_upload_resize_task.delay(title=title, category=category, tags=tags, user=user.id, name=name, ratio=ratio, width=width, height=height)
+        return_data = {
+            "data": {
+                "task_id": task.id,
+                "task_status": task.status
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@shared_task
+def image_upload_resize_task(*, title: str, category: str, tags: list, user: int, name: str, ratio: float, width: int, height: int):
+    '''
+        resize a gif
+    '''
+    resize_size = (int(width * float(ratio)), int(height * float(ratio)))
+    with Image.open(name) as img:
+        frames = []
+        for frame in ImageSequence.Iterator(img):
+            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+            frames.append(resized_frame)
+        output_file = io.BytesIO()
+        frames[0].save(output_file, format='GIF', save_all=True, append_images=frames[1:])
+
+    image = Image.open(output_file)
+    gif_fingerprint = imagehash.average_hash(image, hash_size=16)
+    fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
+    if fingerprint.gif_id != 0:
+        return_data = {
+            "id": fingerprint.gif_id,
+            "uploaded": True
+        }
+        return return_data
+
+    gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
+    gif_file = GifFile.objects.create(metadata=gif)
+    gif_file.file.save(name, File(output_file))
+    gif_file.save()
+    fingerprint.gif_id = gif.id
+    fingerprint.save()
+
+    with Image.open(gif_file.file) as image:
+        durations = [image.info.get("duration")] * image.n_frames
+        if not durations[0]:
+            durations = [100] * image.n_frames
+        total_time = sum(durations) / 1000.0
+    width = gif_file.file.width
+    height = gif_file.file.height
+    path = gif_file.file.path
+    gif.duration = total_time
+    gif.width = width
+    gif.height = height
+    gif.name = name
+    gif.save()
+
+    resize_path = path.rsplit("/", 1)[0] + "/resize_" + name
+    max_size = min(width, height, 150)
+    ratio = width / height
+    new_width = int(max_size * math.sqrt(ratio))
+    new_height = int(max_size / math.sqrt(ratio))
+    resize_size = (new_width, new_height)
+    with Image.open(path) as img:
+        frames = []
+        for frame in ImageSequence.Iterator(img):
+            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+            frames.append(resized_frame)
+        frames[0].save(resize_path, save_all=True, append_images=frames[1:])
+
+    os.remove(name)
+    return_data = {
+        "id": gif.id,
+        "width": gif.width,
+        "height": gif.height,
+        "duration": gif.duration,
+        "category": gif.category,
+        "tags": gif.tags,
+        "uploader": user,
+        "pub_time": gif.pub_time
+    }
+    return return_data
+
+@csrf_exempt
+@handle_errors
+def image_upload_resize_check(req: HttpRequest, task_id):
+    '''
+    request:
+        None
+    response:
+        {
+            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+            "task_status": "PENDING"
+        }
+        {
+            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+            "task_status": "STARTED"
+        }
+        {
+            "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
+            "task_status": "SUCCESS",
+            "task_result": {
+                "id": 1,
+                "width": 640,
+                "height": 480,
+                "duration": 5.2,
+                "uploader": 3, 
+                "pub_time": "2023-03-21T19:02:16.305Z"
+            }
+        }
+    '''
+    if req.method == "GET":
+        task_result = AsyncResult(task_id)
+        return_data = {
+            "data": {
+                "task_id": task_id,
+                "task_status": task_result.status
+            }
+        }
+        if task_result.status == 'SUCCESS':
+            return_data["data"]['task_result'] = task_result.result
         return request_success(return_data)
     return not_found_error()
 
@@ -733,6 +920,7 @@ def image_detail(req: HttpRequest, gif_id: any):
         user = UserInfo.objects.filter(id=gif.uploader).first()
 
         is_liked = False
+        is_followed = False
         if req.META.get("HTTP_AUTHORIZATION"):
             encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
             token = helpers.decode_token(encoded_token)
@@ -741,14 +929,15 @@ def image_detail(req: HttpRequest, gif_id: any):
             current_user = UserInfo.objects.filter(id=token["id"]).first()
             if str(gif.id) in current_user.favorites:
                 is_liked = True
+            if str(user.id) in current_user.followings:
+                is_followed = True
 
         return_data = {
             "data": {
+                "gif_data": {
                     "id": gif.id,
                     "title": gif.title,
                     "uploader": user.user_name,
-                    "uploader_id": user.id,
-                    "avatar": user.avatar,
                     "width": gif.width,
                     "height": gif.height,
                     "category": gif.category,
@@ -757,9 +946,15 @@ def image_detail(req: HttpRequest, gif_id: any):
                     "pub_time": gif.pub_time,
                     "like": gif.likes,
                     "is_liked": is_liked,
-                    "path": gif.giffile.file.path
+                },
+                "user_data": {
+                    "uploader_id": user.id,
+                    "avatar": user.avatar,
+                    "fans": len(user.followers),
+                    "is_followed": is_followed
                 }
             }
+        }
         return request_success(return_data)
     if req.method == "DELETE":
         try:

@@ -20,6 +20,8 @@ urlpatterns = [
     path('user/unfollow/<user_id>', views.user_unfollow),
     path('user/readhistory', views.user_read_history),
     path('image/upload', views.image_upload),
+    path('image/resize', views.image_upload_resize),
+    path('image/resizecheck/<task_id>', views.image_upload_resize_check),
     path('image/video', views.image_upload_video),
     path('image/videocheck/<task_id>', views.image_upload_video_check),
     path('image/watermark/<gif_id>', views.image_watermark),

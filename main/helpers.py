@@ -43,6 +43,16 @@ def is_chinese(char: str):
     '''
     return re.match(".*[\u3400-\u4DB5\u4E00-\u9FCB\uF900-\uFA6A].*", char)
 
+def is_float_string(sentence):
+    '''
+        Test if sentence is float string
+    '''
+    try:
+        float(sentence)
+        return True
+    except ValueError:
+        return False
+
 def user_username_checker(user_name: str):
     '''
         Check user's username
