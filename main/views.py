@@ -920,6 +920,7 @@ def image_detail(req: HttpRequest, gif_id: any):
         user = UserInfo.objects.filter(id=gif.uploader).first()
 
         is_liked = False
+        is_followed = False
         if req.META.get("HTTP_AUTHORIZATION"):
             encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
             token = helpers.decode_token(encoded_token)
@@ -928,14 +929,15 @@ def image_detail(req: HttpRequest, gif_id: any):
             current_user = UserInfo.objects.filter(id=token["id"]).first()
             if str(gif.id) in current_user.favorites:
                 is_liked = True
+            if str(user.id) in current_user.followings:
+                is_followed = True
 
         return_data = {
             "data": {
+                "gif_data": {
                     "id": gif.id,
                     "title": gif.title,
                     "uploader": user.user_name,
-                    "uploader_id": user.id,
-                    "avatar": user.avatar,
                     "width": gif.width,
                     "height": gif.height,
                     "category": gif.category,
@@ -944,9 +946,15 @@ def image_detail(req: HttpRequest, gif_id: any):
                     "pub_time": gif.pub_time,
                     "like": gif.likes,
                     "is_liked": is_liked,
-                    "path": gif.giffile.file.path
+                },
+                "user_data": {
+                    "uploader_id": user.id,
+                    "avatar": user.avatar,
+                    "fans": len(user.followers),
+                    "is_followed": is_followed
                 }
             }
+        }
         return request_success(return_data)
     if req.method == "DELETE":
         try:
