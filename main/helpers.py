@@ -13,6 +13,7 @@ import jwt
 from utils.utils_request import internal_error
 from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
 from .models import UserInfo, GifMetadata, GifFingerprint
+from .search import ElasticSearchEngine
 
 def handle_errors(view_func):
     '''
@@ -242,8 +243,8 @@ def show_search_page(gif_id_list, page: int):
     gif_list = []
     for gif_id in gif_id_list[begin:end]:
         gif = GifMetadata.objects.filter(id=int(gif_id)).first()
-        user = UserInfo.objects.filter(id=gif.uploader).first()
         if gif:
+            user = UserInfo.objects.filter(id=gif.uploader).first()
             gif_list.append({
                 "data": {
                     "id": gif.id,
