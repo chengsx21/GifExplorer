@@ -1457,14 +1457,14 @@ class ViewsTests(TestCase):
             res = self.image_detail_with_correct_response_method(image_id=str(i))
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
-            self.assertEqual(res.json()["data"]["like"], 1)
+            self.assertEqual(res.json()["data"]["gif_data"]["like"], 1)
             res = self.image_cancel_like_with_correct_response_method(image_id=i, token=token)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             res = self.image_detail_with_correct_response_method(image_id=str(i))
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
-            self.assertEqual(res.json()["data"]["like"], 0)
+            self.assertEqual(res.json()["data"]["gif_data"]["like"], 0)
         helpers.delete_token_from_white_list(token)
 
     def test_image_like_with_wrong_response_method(self):
