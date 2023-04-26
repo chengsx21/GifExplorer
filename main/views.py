@@ -1830,6 +1830,8 @@ def image_search(req: HttpRequest):
                 return format_error()
             try:
                 page = body["page"]
+                assert isinstance(page, int)
+                assert page > 0
             except (TypeError, ValueError) as error:
                 print(error)
                 return request_failed(5, "INVALID_PAGE", data={"data": {}})
