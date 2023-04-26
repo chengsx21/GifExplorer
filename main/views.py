@@ -948,9 +948,14 @@ def image_detail(req: HttpRequest, gif_id: any):
                     "is_liked": is_liked,
                 },
                 "user_data": {
-                    "uploader_id": user.id,
+                    "id": user.id,
+                    "user_name": user.user_name,
+                    "signature": user.signature,
+                    "mail": user.mail,
                     "avatar": user.avatar,
-                    "fans": len(user.followers),
+                    "followers": len(user.followers),
+                    "following": len(user.followings),
+                    "register_time": user.register_time,
                     "is_followed": is_followed
                 }
             }
