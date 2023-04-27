@@ -630,7 +630,7 @@ def image_upload(req: HttpRequest):
         gif_fingerprint = imagehash.average_hash(image, hash_size=16)
         fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
         if fingerprint.gif_id != 0:
-            return request_success(data={"data": {"id": fingerprint.id}})
+            return request_success(data={"data": {"id": fingerprint.gif_id}})
 
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
         gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
