@@ -88,7 +88,7 @@ def user_register(req: HttpRequest):
             user.delete()
 
         verification_token = str(uuid.uuid4())
-        # print(verification_token)
+        print(verification_token)
         verification_link = f'https://gifexplorer-frontend-nullptr.app.secoder.net/signup/verify?token={verification_token}'
         vertificated_user = UserVerification.objects.create(user_name=user_name,
                                                             token=verification_token,
@@ -630,7 +630,7 @@ def image_upload(req: HttpRequest):
         gif_fingerprint = imagehash.average_hash(image, hash_size=16)
         fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
         if fingerprint.gif_id != 0:
-            return request_success(data={"data": {"id": fingerprint.id}})
+            return request_success(data={"data": {"id": fingerprint.gif_id}})
 
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
         gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
