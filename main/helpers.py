@@ -246,20 +246,18 @@ def show_search_page(gif_id_list, page: int):
         if gif:
             user = UserInfo.objects.filter(id=gif.uploader).first()
             gif_list.append({
-                "data": {
-                    "id": gif.id,
-                    "name": gif.name,
-                    "title": gif.title,
-                    "width": gif.width,
-                    "height": gif.height,
-                    "duration": gif.duration,
-                    "uploader": user.user_name,
-                    "uploader_id": user.id,
-                    "category": gif.category,
-                    "tags": gif.tags,
-                    "like": gif.likes,
-                    "pub_time": gif.pub_time
-                },
+                "id": gif.id,
+                "name": gif.name,
+                "title": gif.title,
+                "width": gif.width,
+                "height": gif.height,
+                "duration": gif.duration,
+                "uploader": user.user_name,
+                "uploader_id": user.id,
+                "category": gif.category,
+                "tags": gif.tags,
+                "like": gif.likes,
+                "pub_time": gif.pub_time
             })
     return gif_list, math.ceil(len(gif_id_list) / MAX_GIFS_PER_PAGE)
 
