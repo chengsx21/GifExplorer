@@ -1345,7 +1345,7 @@ class ViewsTests(TestCase):
         res = self.image_upload_with_correct_response_method(url="files/tests/Noodles.gif", title="Noodles", category="food", tags=["food", "noodles"], token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"], {'id': 1})
+        self.assertEqual(res.json()["data"], {'id': 4})
 
         res = self.image_delete_with_correct_response_method(image_id=image_id, token=token)
         self.assertEqual(res.status_code, 200)
