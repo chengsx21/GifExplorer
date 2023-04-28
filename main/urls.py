@@ -10,6 +10,7 @@ urlpatterns = [
     path('user/register', views.user_register),
     path('user/verify/<token>', views.user_mail_verify),
     path('user/salt', views.user_salt),
+    path('user/password/<user_id>', views.user_password),
     path('user/login', views.user_login),
     path('user/modifypassword', views.user_modify_password),
     path('user/avatar', views.user_avatar),

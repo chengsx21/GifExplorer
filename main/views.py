@@ -185,6 +185,33 @@ def user_salt(req: HttpRequest):
 
 @csrf_exempt
 @handle_errors
+def user_password(req: HttpRequest, user_id: any):
+    '''
+    request:
+        None
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "salt": "SECRET_SALT"
+            }
+        }
+    '''
+    if req.method == "POST":
+        user = UserInfo.objects.filter(id=user_id).first()
+        if not user:
+            return request_failed(4, "USER_NAME_NOT_EXISTS_OR_WRONG_PASSWORD", data={"data": {}})
+        return_data = {
+            "data": {
+                "password": user.password
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
 def user_login(req: HttpRequest):
     '''
     request:
