@@ -1862,40 +1862,28 @@ def image_search(req: HttpRequest):
             except (TypeError, ValueError) as error:
                 print(error)
                 return request_failed(5, "INVALID_PAGE", data={"data": {}})
+            # search_type 默认精确搜索
             try:
                 search_type = body["type"]
             except:
-                search_type = "perfect"  # 默认精确搜索
+                search_type = "perfect" 
 
-            # # 从前端的请求中取出信息
-            # try:
-            #     body = json.loads(req.body.decode("utf-8"))
-            #     keyword = body['query']
-            #     include = body['include']
-            #     exclude = body['exclude']
-            #     try:
-            #         sort = body['sort'] # 是否按时间排序，默认为 False
-            #     except Exception:
-            #         sort = False 
-            #     # （暂定）按页返回
-            #     start_page = int(body['page']) - 1
-            #     start_page = min(max(start_page, 0),5000)
-            #     # 页码不是正整数
-            #     if not isinstance(start_page,int):
-            #         return request_failed(code=5, info='INVALID_PAGE', status_code=400)
-            # except Exception as error:
-            #     return format_error()
-
+            # category 默认为 ""
+            if "category" not in body:
+                body["category"] = ""
+            # tags 默认为 []
+            if "tags" not in body:
+                body["tags"] = []
             # 连接搜索模块
             search_engine = helpers.SEARCH_ENGINE
 
             if search_type == "perfect":
-                # 尝试弹出键为 'fuzzy' 的值，如果不存在则返回默认值 'default'
-                _ = body.pop('fuzzy', 'default')
                 id_list = search_engine.search_perfect(request=body)
-            elif search_type == "fuzzy":
-                id_list = search_engine.search_partial(keyword=body['keyword'], target=body['target'])
-            
+            elif search_type == "partial":
+                id_list = search_engine.search_partial(request=body)
+            else:
+                return format_error()
+
             gif_list, pages = helpers.show_search_page(id_list, page - 1)
             
             return request_success(data=
