@@ -15,6 +15,8 @@ class ElasticSearchEngine():
         |- partial search
     - suggest function
         |- completion
+    - synchronization function
+        |- post metadata
     """
 
     # use Kibana to test
@@ -26,54 +28,55 @@ class ElasticSearchEngine():
         self.client = Elasticsearch(
             ['https://router.nasuyun.com:9200'],
             http_auth=('gif_search', '8BOeYq2P3t2JPWn6G6jfVB5top'),
-            scheme='https',
+            scheme="https",
         )
 
-    # [perfect match]
-    #   This function is used to search gifs with a particular title
-    #   as well as uploader and there's no segmentation for keyword.
-    #   Support filters.
-    # [params]
-    #   requset: filter info
-    #   {
-    #       "target": str,
-    #       "keyword": str,
-    #       "category": str,
-    #       "filter": [
-    #           {"range": {"width": {"gte": min, "lte": max}}},
-    #           {"range": {"height": {"gte": min, "lte": max}}},
-    #           {"range": {"duration": {"gte": min, "lte": max}}}
-    #       ],
-    #       "tags": [str1, str2, str3 ...]
-    #   }
-    #   target must be "title" or "uploader"
-    # [return value]
-    #   list of gif ids, sorted by correlation scores
     def search_perfect(self, request):
-        """ query example
-        {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"title.keyword": "still dog"}}, # must
-                        {"term": {"category.keyword": "animal"}} # optional
-                        {"terms_set": { # optional
-                            "tags": {
-                                "terms": ["animal", "cat"],
-                                "minimum_should_match_script": {
-                                    "source": "2"
-                                }
-                            }
-                        }}
-                        {"range": {"width": {"gte": 1, "lte": 2}}}, # optional
-                        {"range": {"height": {"gte": 1, "lte": 2}}}, # optional
-                        {"range": {"duration": {"gte": 1, "lte": 2}}} # optional
-                    ]
-                }
+        """
+        [perfect match]
+            This function is used to search gifs with a particular title
+            as well as uploader and there's no segmentation for keyword.
+            Support filters.
+        [params]
+            requset: filter info
+            {
+                "target": str, target must be "title" or "uploader"
+                "keyword": str,
+                "category": str,
+                "filter": [
+                    {"range": {"width": {"gte": min, "lte": max}}},
+                    {"range": {"height": {"gte": min, "lte": max}}},
+                    {"range": {"duration": {"gte": min, "lte": max}}}
+                ],
+                "tags": [str1, str2, str3 ...]
             }
-        }
+        [return value]
+            list of gif ids, sorted by correlation scores
         """
 
+        # query example
+        # {
+        #     "query": {
+        #         "bool": {
+        #             "must": [
+        #                 {"term": {"title.keyword": "still dog"}}, # must
+        #                 {"term": {"category.keyword": "animal"}} # optional
+        #                 {"terms_set": { # optional
+        #                     "tags": {
+        #                         "terms": ["animal", "cat"],
+        #                         "minimum_should_match_script": {
+        #                             "source": "2"
+        #                         }
+        #                     }
+        #                 }}
+        #                 {"range": {"width": {"gte": 1, "lte": 2}}}, # must(default val)
+        #                 {"range": {"height": {"gte": 1, "lte": 2}}}, # must
+        #                 {"range": {"duration": {"gte": 1, "lte": 2}}} # must
+        #             ]
+        #         }
+        #     }
+        # }
+        
         body = {
             "query": {
                 "bool": {
@@ -96,7 +99,8 @@ class ElasticSearchEngine():
 
         # filter category
         if request["category"] != "":
-            must_array.append({"term": {"category.keyword": request["category"]}})
+            must_array.append(
+                {"term": {"category.keyword": request["category"]}})
 
         # filter tags
         # tags provided by user should be the subset of real gif tags
@@ -205,7 +209,8 @@ class ElasticSearchEngine():
 
         # filter category
         if request["category"] != "":
-            must_array.append({"term": {"category.keyword": request["category"]}})
+            must_array.append(
+                {"term": {"category.keyword": request["category"]}})
 
         # filter tags
         # tags provided by user should be the subset of real gif tags
@@ -307,7 +312,8 @@ class ElasticSearchEngine():
                 "title_suggest": {
                     "prefix": str,
                     "completion": {
-                        "filed": "title"
+                        "filed": "title",
+                        "skip_duplicates": true
                     }
                 }
             }
@@ -319,7 +325,8 @@ class ElasticSearchEngine():
                 "title_suggest": {
                     "prefix": user_input,
                     "completion": {
-                        "field": "suggest"
+                        "field": "suggest",
+                        "skip_duplicates": True
                     }
                 }
             }
@@ -331,38 +338,6 @@ class ElasticSearchEngine():
             for op in response["suggest"]["title_suggest"][0]["options"]
         ]
 
-    def suggest_search(self, user_input):
-        """
-        {
-            "suggest": {
-                "title_suggest": {
-                    "prefix": str,
-                    "completion": {
-                        "filed": "title"
-                    }
-                }
-            }
-        }
-        """
-
-        body = {
-            "suggest": {
-                "title_suggest": {
-                    "prefix": user_input,
-                    "completion": {
-                        "field": "suggest"
-                    }
-                }
-            }
-        }
-
-        response = self.client.search(body=body)
-        return [
-            op["_source"]["suggest"]
-            for op in response["suggest"]["title_suggest"][0]["options"]
-        ]
-    
-    
     def post_metadata(self, data):
         """
         [post meta data]
@@ -402,40 +377,58 @@ class ElasticSearchEngine():
         )
         return response
 
-if __name__ == "__main__":
-    es = ElasticSearchEngine()
 
-    # test perfect match
+def test_perfect_search():
+
+    """
+    Unit test for perfect_metadata
+    """
+
     request1 = {
-        "target": "title",
-        "keyword": "cat picture",
-        "category": "cat",
-        "filter": [
-            {"range": {"width": {"gte": 0, "lte": 100}}},
-            {"range": {"height": {"gte": 0, "lte": 100}}},
-            {"range": {"duration": {"gte": 0, "lte": 100}}}
-        ],
-        "tags": ["animal", "cat"]
-    }
-    print(es.search_perfect(request1))
-
-    # test pratial match
-    request2 = {
         "target": "uploader",
-        "keyword": "point eight",
-        "category": "cat",
-        "filter": [
-            {"range": {"width": {"gte": 0, "lte": 100}}},
-            {"range": {"height": {"gte": 0, "lte": 100}}},
-            {"range": {"duration": {"gte": 0, "lte": 100}}}
-        ],
-        "tags": ["animal", "cat"]
+        "keyword": "spider126",
+        "category": "",
+        "filter": [],
+        "tags": []
     }
-    print(es.search_partial(request2))
 
-    # test suggest
-    print(es.suggest_search("dog"))
+    response = ElasticSearchEngine().search_perfect(request1)
+    print(response)
+    assert len(response) > 0
 
-    # # test fuzzy match
-    # print(es.search_fuzzy("a large cat", "title"))
-    # print(es.search_fuzzy("point eight", "uploader"))
+    # request2 = {
+    #     "target": "title",
+    #     ""
+    # }
+
+
+def test_post_metadata():
+
+    """
+    Unit test for post_metadata 
+    """
+
+    request1 = {
+        "id": 16,
+        "title": "Singing",
+        "uploader": "Chengsx21",
+        "width": 1280,
+        "height": 720,
+        "category": "food",
+        "tags": [
+            "funny",
+            "people",
+            "gathering"
+        ],
+        "duration": 5.2,
+        "pub_time": "2023-04-23T15:32:59.514Z",
+        "like": 0,
+        "is_liked": False,
+    }
+
+    response = ElasticSearchEngine().post_metadata(request1)
+
+    # unit test
+    print("response: ", response)
+    assert int(response["_id"]) == request1["id"]
+
