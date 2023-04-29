@@ -19,8 +19,9 @@ class ElasticSearchEngine():
         |- post metadata
     """
 
-    # use Kibana to test
-    # see http://localhost:5601/app/dev_tools#/console
+    # Use Kibana to test
+    # Local test: see http://localhost:5601/app/dev_tools#/console
+    # Nasuyun test: see https://kibana.nasuyun.com/app/kibana#/dev_tools/console
 
     # bind to elastic search server
     def __init__(self):
@@ -38,18 +39,19 @@ class ElasticSearchEngine():
             as well as uploader and there's no segmentation for keyword.
             Support filters.
         [params]
-            requset: filter info
+            requset: dic of filter info
             {
-                "target": str, target must be "title" or "uploader"
-                "keyword": str,
-                "category": str,
+                "target": str, "title" or "uploader" (default="")
+                "keyword": str, (default="")
+                "category": str, (default="")
                 "filter": [
                     {"range": {"width": {"gte": min, "lte": max}}},
                     {"range": {"height": {"gte": min, "lte": max}}},
                     {"range": {"duration": {"gte": min, "lte": max}}}
-                ],
-                "tags": [str1, str2, str3 ...]
+                ], (default=[])
+                "tags": [str1, str2, str3 ...] (default=[])
             }
+            all segments are optional!
         [return value]
             list of gif ids, sorted by correlation scores
         """
@@ -59,9 +61,9 @@ class ElasticSearchEngine():
         #     "query": {
         #         "bool": {
         #             "must": [
-        #                 {"term": {"title.keyword": "still dog"}}, # must
-        #                 {"term": {"category.keyword": "animal"}} # optional
-        #                 {"terms_set": { # optional
+        #                 {"term": {"title.keyword": "still dog"}},
+        #                 {"term": {"category.keyword": "animal"}}
+        #                 {"terms_set": {
         #                     "tags": {
         #                         "terms": ["animal", "cat"],
         #                         "minimum_should_match_script": {
@@ -69,9 +71,9 @@ class ElasticSearchEngine():
         #                         }
         #                     }
         #                 }}
-        #                 {"range": {"width": {"gte": 1, "lte": 2}}}, # must(default val)
-        #                 {"range": {"height": {"gte": 1, "lte": 2}}}, # must
-        #                 {"range": {"duration": {"gte": 1, "lte": 2}}} # must
+        #                 {"range": {"width": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"height": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
         #             ]
         #         }
         #     }
@@ -91,7 +93,7 @@ class ElasticSearchEngine():
         if target == "uploader":
             must_array.append(
                 {"term": {"uploader.keyword": request["keyword"]}})
-        else:
+        elif target == "title":
             must_array.append({"term": {"title.keyword": request["keyword"]}})
 
         # filter width / height / duration
@@ -115,64 +117,65 @@ class ElasticSearchEngine():
                 }
             }})
 
-        assert must_array
         body["query"]["bool"]["must"] = must_array
-        print(body)
         response = self.client.search(body=body)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
-    # [partial match]
-    #   This function allows you search gifs with a particular
-    #   title or uploader by proivding partial keywords. Iuput from
-    #   user will be segmented and each segment should be included.
-    #   Support filters.
-    # [params]
-    #   requset: filter info
-    #   {
-    #       "target": str,
-    #       "keyword": str,
-    #       "category": str,
-    #       "filter": [
-    #           {"range": {"width": {"gte": min, "lte": max}}},
-    #           {"range": {"height": {"gte": min, "lte": max}}},
-    #           {"range": {"duration": {"gte": min, "lte": max}}}
-    #       ],
-    #       "tags": [str1, str2, str3 ...]
-    #   }
-    #   target must be "title" or "uploader"
-    # [return value]
-    #   list of gif ids, sorted by correlation scores
 
     def search_partial(self, request):
-        """ query example
-        {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"match": { # must
-                            "title": {
-                                "query": "still dog",
-                                "operator": "or"
-                            }
-                        }},
-                        {"term": {"category.keyword": "animal"}} # optional
-                        {"terms_set": { # optional
-                            "tags": {
-                                "terms": ["animal", "cat"],
-                                "minimum_should_match_script": {
-                                    "source": "2"
-                                }
-                            }
-                        }}
-                        {"range": {"width": {"gte": 1, "lte": 2}}}, # optional
-                        {"range": {"height": {"gte": 1, "lte": 2}}}, # optional
-                        {"range": {"duration": {"gte": 1, "lte": 2}}} # optional
-                    ]
-                }
-            }
-        }
+
         """
+        [partial match]
+            This function allows you search gifs with a particular
+            title or uploader by proivding partial keywords. Iuput from
+            user will be segmented and each segment should be included.
+            Support filters.
+        [params]
+            requset: filter info
+            {
+                "target": str, (default="")
+                "keyword": str, (default="")
+                "category": str, (default="")
+                "filter": [
+                    {"range": {"width": {"gte": min, "lte": max}}},
+                    {"range": {"height": {"gte": min, "lte": max}}},
+                    {"range": {"duration": {"gte": min, "lte": max}}}
+                ], (default=[])
+                "tags": [str1, str2, str3 ...] (default=[])
+            }
+            all segments are optional
+        [return value]
+            list of gif ids, sorted by correlation scores
+        """
+
+        # query example
+        # {
+        #     "query": {
+        #         "bool": {
+        #             "must": [
+        #                 {"match": {
+        #                     "title": {
+        #                         "query": "still dog",
+        #                         "operator": "and"
+        #                     }
+        #                 }},
+        #                 {"term": {"category.keyword": "animal"}} # optional
+        #                 {"terms_set": {
+        #                     "tags": {
+        #                         "terms": ["animal", "cat"],
+        #                         "minimum_should_match_script": {
+        #                             "source": "2"
+        #                         }
+        #                     }
+        #                 }}
+        #                 {"range": {"width": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"height": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
+        #             ]
+        #         }
+        #     }
+        # }
 
         body = {
             "query": {
@@ -190,16 +193,16 @@ class ElasticSearchEngine():
                 "match": {
                     "uploader": {
                         "query": request["keyword"],
-                        "operator": "or"
+                        "operator": "and"
                     }
                 }
             })
-        else:
+        elif target == "title":
             must_array.append({
                 "match": {
                     "title": {
                         "query": request["keyword"],
-                        "operator": "or"
+                        "operator": "and"
                     }
                 }
             })
@@ -225,9 +228,7 @@ class ElasticSearchEngine():
                 }
             }})
 
-        assert must_array
         body["query"]["bool"]["must"] = must_array
-        print(body)
         response = self.client.search(body=body)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
