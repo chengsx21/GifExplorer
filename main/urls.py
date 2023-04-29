@@ -39,4 +39,5 @@ urlpatterns = [
     path('image/comment/cancellike/<comment_id>', views.image_comment_cancel_like),
     path('image/allgifs', views.image_allgifs),
     path('image/search', views.image_search),
+    path('image/search/suggest', views.search_suggest),
 ]

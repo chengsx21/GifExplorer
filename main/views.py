@@ -1886,7 +1886,7 @@ def image_search(req: HttpRequest):
         if "tags" not in body:
             body["tags"] = []
         # 连接搜索模块
-        search_engine = helpers.SEARCH_ENGINE
+        search_engine = config.SEARCH_ENGINE
 
         if search_type == "perfect":
             id_list = search_engine.search_perfect(request=body)
@@ -1896,7 +1896,7 @@ def image_search(req: HttpRequest):
             return format_error()
 
         gif_list, pages = helpers.show_search_page(id_list, page - 1)
-        
+
         return request_success(data=
             {
                 "data": {
@@ -1905,4 +1905,44 @@ def image_search(req: HttpRequest):
                 }
             })
     return not_found_error()
+    
+@csrf_exempt
+@handle_errors
+def search_suggest(req: HttpRequest):
+    """
+    request:
+        {
+            "query": "Hello"
+        }
+    response:
+        {
+            "code": 0,
+            "message": "SUCCESS",
+            "data": {
+                "suggestions": [
+                    "Hello world!",
+                    "Hello world again!"
+                ]
+            }
+        }
+    """
+    if req.method == "POST":
+        try:
+            body = json.loads(req.body)
+            query = body["query"]
+        except Exception as error:
+            print(error)
+            return format_error()
+        
+        # 连接搜索模块
+        search_engine = config.SEARCH_ENGINE
+
+        suggestion_list = search_engine.suggest_search(query)
+
+        return request_success(data=
+            {
+                "data": {
+                    "suggestions": suggestion_list
+                }
+            })
     
