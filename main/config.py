@@ -2,6 +2,7 @@
     configure for the app
 '''
 from GifExplorer.settings import DEBUG
+from .search import ElasticSearchEngine
 
 if not DEBUG:
     USER_VERIFICATION_MAX_TIME = 300
@@ -11,6 +12,8 @@ else:
 MAX_GIFS_PER_PAGE = 20
 
 USER_WHITE_LIST = {}
+
+SEARCH_ENGINE = ElasticSearchEngine()
 
 SECRET_KEY = "Welcome to the god damned SE world!"
 
