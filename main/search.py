@@ -331,6 +331,38 @@ class ElasticSearchEngine():
             for op in response["suggest"]["title_suggest"][0]["options"]
         ]
 
+    def suggest_search(self, user_input):
+        """
+        {
+            "suggest": {
+                "title_suggest": {
+                    "prefix": str,
+                    "completion": {
+                        "filed": "title"
+                    }
+                }
+            }
+        }
+        """
+
+        body = {
+            "suggest": {
+                "title_suggest": {
+                    "prefix": user_input,
+                    "completion": {
+                        "field": "suggest"
+                    }
+                }
+            }
+        }
+
+        response = self.client.search(body=body)
+        return [
+            op["_source"]["suggest"]
+            for op in response["suggest"]["title_suggest"][0]["options"]
+        ]
+    
+    
     def post_metadata(self, data):
         """
         [post meta data]
