@@ -1794,6 +1794,7 @@ def image_allgifs(req: HttpRequest):
     return not_found_error()
 
 @csrf_exempt
+@handle_errors
 def image_search(req: HttpRequest):
     '''
     request:
@@ -1848,52 +1849,49 @@ def image_search(req: HttpRequest):
         }
     '''
 
-    try:
-        if req.method == "POST":
-            try:
-                body = json.loads(req.body.decode("utf-8"))
-            except (TypeError, KeyError) as error:
-                print(error)
-                return format_error()
-            try:
-                page = body["page"]
-                assert isinstance(page, int)
-                assert page > 0
-            except (TypeError, ValueError) as error:
-                print(error)
-                return request_failed(5, "INVALID_PAGE", data={"data": {}})
-            # search_type 默认精确搜索
-            try:
-                search_type = body["type"]
-            except:
-                search_type = "perfect" 
+    if req.method == "POST":
+        try:
+            body = json.loads(req.body.decode("utf-8"))
+        except (TypeError, KeyError) as error:
+            print(error)
+            return format_error()
+        try:
+            page = body["page"]
+            assert isinstance(page, int)
+            assert page > 0
+        except (TypeError, ValueError) as error:
+            print(error)
+            return request_failed(5, "INVALID_PAGE", data={"data": {}})
+        # search_type 默认精确搜索
+        try:
+            search_type = body["type"]
+        except:
+            search_type = "perfect" 
 
-            # category 默认为 ""
-            if "category" not in body:
-                body["category"] = ""
-            # tags 默认为 []
-            if "tags" not in body:
-                body["tags"] = []
-            # 连接搜索模块
-            search_engine = helpers.SEARCH_ENGINE
+        # category 默认为 ""
+        if "category" not in body:
+            body["category"] = ""
+        # tags 默认为 []
+        if "tags" not in body:
+            body["tags"] = []
+        # 连接搜索模块
+        search_engine = helpers.SEARCH_ENGINE
 
-            if search_type == "perfect":
-                id_list = search_engine.search_perfect(request=body)
-            elif search_type == "partial":
-                id_list = search_engine.search_partial(request=body)
-            else:
-                return format_error()
+        if search_type == "perfect":
+            id_list = search_engine.search_perfect(request=body)
+        elif search_type == "partial":
+            id_list = search_engine.search_partial(request=body)
+        else:
+            return format_error()
 
-            gif_list, pages = helpers.show_search_page(id_list, page - 1)
-            
-            return request_success(data=
-                {
-                    "data": {
-                        "page_count": pages,
-                        "page_data": gif_list
-                    }
-                })
-        return not_found_error()
-    except Exception as error:
-        print(error)
-        return internal_error(str(error))
+        gif_list, pages = helpers.show_search_page(id_list, page - 1)
+        
+        return request_success(data=
+            {
+                "data": {
+                    "page_count": pages,
+                    "page_data": gif_list
+                }
+            })
+    return not_found_error()
+    
