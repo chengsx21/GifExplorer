@@ -1939,7 +1939,7 @@ def search_suggest(req: HttpRequest):
     """
     request:
         {
-            "query": "Hello"
+            "query": "Hello" (default = "")
         }
     response:
         {
@@ -1959,6 +1959,8 @@ def search_suggest(req: HttpRequest):
         except Exception as error:
             print(error)
             return format_error()
+        if "query" not in body:
+            body["query"] = ""
         
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
