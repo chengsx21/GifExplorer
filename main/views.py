@@ -1866,36 +1866,63 @@ def image_search(req: HttpRequest):
         except (TypeError, KeyError) as error:
             print(error)
             return format_error()
-        try:
-            page = body["page"]
-            assert isinstance(page, int)
-            assert page > 0
-        except (TypeError, ValueError) as error:
-            print(error)
-            return request_failed(5, "INVALID_PAGE", data={"data": {}})
-        # search_type 默认精确搜索
-        try:
-            search_type = body["type"]
-        except:
-            search_type = "perfect" 
 
-        # category 默认为 ""
+        # target 默认为 "" ，表示没有本项限制。
+        if "target" not in body:
+            body["target"] = ""
+        # target 必须为 "", "uploader", "title" 三者之一
+        try:
+            assert body["target"] in ["", "uploader", "title"]
+        except Exception as error:
+            print(error)
+            return format_error()
+        # keyword 默认为 "" ，表示没有本项限制。
+        if "keyword" not in body:
+            body["keyword"] = ""
+        # filter 默认为 [] ，表示没有本项限制。
+        if "filter" not in body:
+            body["filter"] = []
+        # category 默认为 "" ，表示没有本项限制。
         if "category" not in body:
             body["category"] = ""
-        # tags 默认为 []
+        # tags 默认为 [] ，表示没有本项限制。
         if "tags" not in body:
             body["tags"] = []
+        # type 默认为 "perfect" 
+        if "type" not in body:
+            body["type"] = "perfect" 
+        # type 必须为 "perfect", "partial", "fuzzy" 三者之一
+        try:
+            assert body["type"] in ["perfect", "partial", "fuzzy"]
+        except Exception as error:
+            print(error)
+            return format_error()
+        # page 默认为 1
+        if "page" not in body:
+            body["page"] = 1
+        # page 必须为正整数
+        try:
+            assert isinstance(body["page"], int)
+            assert body["page"] > 0
+        except Exception as error:
+            print(error)
+            return request_failed(5, "INVALID_PAGE", data={"data": {}})
+
+        # target和 keyword 必须都非空串（""），或者都为空串，才合法。
+        if not ((body["target"] == "" and body["keyword"] == "") or (body["target"] != "" and body["keyword"] != "")):
+            return format_error()
+
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
 
-        if search_type == "perfect":
+        if body["type"] == "perfect":
             id_list = search_engine.search_perfect(request=body)
-        elif search_type == "partial":
+        elif body["type"] == "partial":
             id_list = search_engine.search_partial(request=body)
         else:
             return format_error()
 
-        gif_list, pages = helpers.show_search_page(id_list, page - 1)
+        gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
 
         return request_success(data=
             {
@@ -1929,7 +1956,6 @@ def search_suggest(req: HttpRequest):
     if req.method == "POST":
         try:
             body = json.loads(req.body)
-            query = body["query"]
         except Exception as error:
             print(error)
             return format_error()
