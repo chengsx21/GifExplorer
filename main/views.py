@@ -692,6 +692,9 @@ def image_upload(req: HttpRequest):
                 frames.append(resized_frame)
             frames[0].save(resize_path, save_all=True, append_images=frames[1:])
 
+        if os.getenv('DEPLOY') is not None:
+            helpers.post_search_metadata(user, gif)
+
         return_data = {
             "data": {
                 "id": gif.id,
@@ -839,6 +842,10 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
         frames[0].save(resize_path, save_all=True, append_images=frames[1:])
 
     os.remove(name)
+    upload_user = UserInfo.objects.filter(id=user).first()
+    if os.getenv('DEPLOY') is not None:
+        helpers.post_search_metadata(upload_user, gif)
+
     return_data = {
         "id": gif.id,
         "width": gif.width,
@@ -1271,6 +1278,10 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
     gif.save()
     os.remove(hashed_name + ".mp4")
     os.remove(hashed_name + ".gif")
+
+    upload_user = UserInfo.objects.filter(id=user).first()
+    if os.getenv('DEPLOY') is not None:
+        helpers.post_search_metadata(upload_user, gif)
 
     return_data = {
         "id": gif.id,

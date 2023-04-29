@@ -11,9 +11,8 @@ import magic
 from PIL import Image
 import jwt
 from utils.utils_request import internal_error
-from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY
+from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY, SEARCH_ENGINE
 from .models import UserInfo, GifMetadata, GifFingerprint
-from .search import ElasticSearchEngine
 
 def handle_errors(view_func):
     '''
@@ -261,4 +260,23 @@ def show_search_page(gif_id_list, page: int):
             })
     return gif_list, math.ceil(len(gif_id_list) / MAX_GIFS_PER_PAGE)
 
-SEARCH_ENGINE = ElasticSearchEngine()
+def post_search_metadata(user: UserInfo, gif: GifMetadata):
+    '''
+        Post search metadata to elasticsearch engine
+    '''
+    data = {
+        "id": gif.id,
+        "title": gif.title,
+        "uploader": user.user_name,
+        "width": gif.width,
+        "height": gif.height,
+        "category": gif.category,
+        "tags": gif.tags,
+        "duration": gif.duration,
+        "pub_time": "2023-04-23T15:32:59.514Z",
+        "like": 0,
+        "is_liked": False
+    }
+    search_engine = SEARCH_ENGINE
+    search_engine.post_metadata(data)
+

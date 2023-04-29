@@ -3,6 +3,7 @@ Filename: main.py
 Author: lutianyu
 Contact: luty21@mails.tsinghua.edu.cn
 """
+import json
 from elasticsearch import Elasticsearch
 
 
@@ -330,6 +331,44 @@ class ElasticSearchEngine():
             for op in response["suggest"]["title_suggest"][0]["options"]
         ]
 
+    def post_metadata(self, data):
+        """
+        [post meta data]
+            This function is called when uploading or updating gifs
+            to guarantee synchronization between Postgre and ES.
+        
+        [params]
+            data(dict): necessary metadata for SEARCH
+            e.g.
+            {
+                "id" : 16,
+                "title" : "Singing",
+                "uploader" : "Chengsx21",
+                "width" : 1280,
+                "height" : 720,
+                "category" : "food",
+                "tags" : [
+                    "funny",
+                    "people",
+                    "gathering"
+                ],
+                "duration" : 5.2,
+                "pub_time" : "2023-04-23T15:32:59.514Z",
+                "like" : 0,
+                "is_liked" : false,
+            }
+            
+        [return value]
+            response of relevant es request
+        """
+
+        data["suggestion"] = data["title"]
+        response = self.client.index(
+            index="gif",
+            id=int(data["id"]),
+            body=json.dumps(data)
+        )
+        return response
 
 if __name__ == "__main__":
     es = ElasticSearchEngine()
