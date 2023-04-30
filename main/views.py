@@ -1932,7 +1932,7 @@ def image_search(req: HttpRequest):
                 }
             })
     return not_found_error()
-    
+
 @csrf_exempt
 @handle_errors
 def search_suggest(req: HttpRequest):
@@ -1965,7 +1965,7 @@ def search_suggest(req: HttpRequest):
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
 
-        suggestion_list = search_engine.suggest_search(query)
+        suggestion_list = search_engine.suggest_search(body["query"])
 
         return request_success(data=
             {
