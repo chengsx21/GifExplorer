@@ -22,7 +22,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
 from django.core.files import File
 from django.utils.html import format_html
-from django.core.files.storage import default_storage
 from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success, internal_error
 from GifExplorer import settings
 from . import helpers
