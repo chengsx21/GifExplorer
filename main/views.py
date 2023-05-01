@@ -1088,8 +1088,9 @@ def image_download_zip(req: HttpRequest):
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, mode='w') as zip_file:
             for gif in gifs:
+                hashed_title = str(uuid.uuid4())[0:6] + '_' + gif.title
                 gif_file = open(gif.giffile.file.path, 'rb')
-                zip_file.writestr(f"{gif.title}.gif", gif_file.read())
+                zip_file.writestr(f"{hashed_title}.gif", gif_file.read())
                 gif_file.close()
 
         response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip', headers={'Access-Control-Allow-Origin': '*'})
