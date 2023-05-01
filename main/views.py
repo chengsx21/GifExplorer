@@ -22,7 +22,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
 from django.core.files import File
 from django.utils.html import format_html
-from django.core.files.storage import default_storage
 from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success, internal_error
 from GifExplorer import settings
 from . import helpers
@@ -1089,9 +1088,8 @@ def image_download_zip(req: HttpRequest):
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, mode='w') as zip_file:
             for gif in gifs:
-                hashed_title = str(uuid.uuid4())[0:6] + '_' + gif.title
                 gif_file = open(gif.giffile.file.path, 'rb')
-                zip_file.writestr(f"{hashed_title}.gif", gif_file.read())
+                zip_file.writestr(f"{gif.title}.gif", gif_file.read())
                 gif_file.close()
 
         response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip', headers={'Access-Control-Allow-Origin': '*'})
