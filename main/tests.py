@@ -321,10 +321,6 @@ class ViewsTests(TestCase):
         '''
             Create a GET/image/upload HttpRequest
         '''
-        # with open('/files/tests/Cake.jpg', 'rb') as f:
-        #     file_data = f.read()
-        # uploaded_file = SimpleUploadedFile('Strawberry.jpg', file_data)
-
         with open(url, 'rb') as reader:
             file_data = reader.read()
         uploaded_file = SimpleUploadedFile(url, file_data)
@@ -352,6 +348,26 @@ class ViewsTests(TestCase):
             'tags': tags
         }
         return self.client.post('/image/upload', data=req, format='multipart', HTTP_AUTHORIZATION=token)
+
+    def image_update_with_correct_response_method(self, gif_id, category, tags, token):
+        '''
+            Create a POST/image/update HttpRequest
+        '''
+        req = {
+            'category': category,
+            'tags': tags
+        }
+        return self.client.post('/image/update/' + gif_id, data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def image_update_with_wrong_response_method(self, gif_id, category, tags, token):
+        '''
+            Create a GET/image/update HttpRequest
+        '''
+        req = {
+            'category': category,
+            'tags': tags
+        }
+        return self.client.get('/image/update/' + gif_id, data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
     def image_detail_with_wrong_response_method(self, image_id):
         '''
@@ -1228,6 +1244,64 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
         helpers.delete_token_from_white_list(token)
+
+    def test_image_update(self):
+        '''
+            Test image update function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_update_with_correct_response_method(gif_id="1", category="food", tags=["food", "strawberry"], token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["id"], 1)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_update_with_user_not_exist(self):
+        '''
+            Test image update when user not exist
+        '''
+        token = helpers.create_token(user_name="not_exist", user_id=100)
+        helpers.add_token_to_white_list(token)
+        res = self.image_update_with_correct_response_method(gif_id="1", category="food", tags=["food", "strawberry"], token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_update_with_wrong_response_method(self):
+        '''
+            Test image update with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_update_with_wrong_response_method(gif_id="1", category="food", tags=["food", "strawberry"], token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_update_with_wrong_type(self):
+        '''
+            Test image update with wrong type
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_update_with_correct_response_method(gif_id="1", category="food", tags="food", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_update_with_invalid_token(self):
+        '''
+            Test image update with invalid token
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+
+        res = self.image_update_with_correct_response_method(gif_id="1", category="food", tags=["food", "strawberry"], token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
 
     def test_image_detail(self):
         '''
