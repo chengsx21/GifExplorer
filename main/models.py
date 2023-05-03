@@ -54,6 +54,20 @@ class UserVerification(models.Model):
         '''
         db_table = "user_verification"
 
+class UserToken(models.Model):
+    '''
+        model for user token
+    '''
+    user_id = models.PositiveIntegerField(default=0)
+    token = models.CharField(max_length=200)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "usertoken"
+
 class GifMetadata(models.Model):
     '''
         model for gif metadata

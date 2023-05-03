@@ -967,7 +967,7 @@ class ViewsTests(TestCase):
         '''
         for i in range(self.user_num):
             user_name = self.user_name_list[i]
-            res = self.user_logout_with_correct_response_method(helpers.create_token(user_name="", user_id=""))
+            res = self.user_logout_with_correct_response_method(helpers.create_token(user_name="", user_id="100"))
             self.assertEqual(res.status_code, 401)
             self.assertEqual(res.json()["code"], 1001)
 
