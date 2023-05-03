@@ -22,12 +22,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
 from django.core.files import File
 from django.utils.html import format_html
+from django.db.models import Q
 from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success, internal_error
 from GifExplorer import settings
 from . import helpers
 from .helpers import handle_errors
 from . import config
-from .models import UserInfo, GifMetadata, GifFile, GifComment, UserVerification
+from .models import UserInfo, UserVerification, GifMetadata, GifFile, GifComment, Message
 
 # Create your views here.
 @csrf_exempt
@@ -535,6 +536,82 @@ def user_unfollow(req: HttpRequest, user_id: any):
             return request_success(data={"data": {}})
         else:
             return request_failed(14, "INVALID_FOLLOWS", data={"data": {}})
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_message(req: HttpRequest):
+    '''
+    request:
+    
+    '''
+    if req.method == "POST":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        user_name = token["user_name"]
+        sender = UserInfo.objects.filter(user_name=user_name).first()
+        if not sender:
+            return unauthorized_error()
+
+        try:
+            body = json.loads(req.body.decode("utf-8"))
+            user_id = body["user_id"]
+            message = body["message"]
+        except (TypeError, KeyError) as error:
+            print(error)
+            return format_error(str(error))
+
+        if not (user_id and message and isinstance(user_id, int) and isinstance(message, str)):
+            return format_error()
+
+        receiver = UserInfo.objects.filter(id=user_id).first()
+        if not receiver:
+            return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
+        new_message = Message.objects.create(sender=sender, receiver=receiver, message=message)
+        return_data = {
+            "data": {
+                "sender": sender.user_name,
+                "receiver": receiver.user_name,
+                "message": message,
+                "pub_time": new_message.pub_time
+            }
+        }
+        return request_success(data=return_data)
+    if req.method == "GET":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        user_name = token["user_name"]
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return unauthorized_error()
+        user_messages = Message.objects.filter(Q(receiver=user)|Q(sender=user)).order_by("-pub_time")
+        messages = {}
+        for message in user_messages:
+            other_user = message.sender if message.sender != user else message.receiver
+            if other_user.id not in messages:
+                messages[other_user.id] = []
+            messages[other_user.id].append({
+                "sender": message.sender.id,
+                "receiver": message.receiver.id,
+                "message": message.message,
+                "pub_time": message.pub_time
+            })
+        return_data = { "data": messages }
+        return request_success(return_data)
     return not_found_error()
 
 @csrf_exempt
