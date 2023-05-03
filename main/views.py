@@ -712,6 +712,65 @@ def image_upload(req: HttpRequest):
 
 @csrf_exempt
 @handle_errors
+def image_update_metadata(req, gif_id):
+    '''
+    request:
+        {
+            "category": "animals",
+            "tags": ["funny", "cat"]
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "id": 1
+        }
+    '''
+    if req.method == "POST":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        try:
+            body = json.loads(req.body.decode("utf-8"))
+            category = body["category"]
+            tags = body["tags"]
+        except (TypeError, ValueError) as error:
+            print(error)
+            return format_error(str(error))
+
+        if not (category and tags and isinstance(category, str) and isinstance(tags, list)):
+            return format_error()
+        for tag in tags:
+            if not isinstance(tag, str):
+                return format_error()
+        user = UserInfo.objects.filter(id=token["id"]).first()
+        if not user:
+            return unauthorized_error()
+        gif = GifMetadata.objects.filter(id=gif_id).first()
+        if not gif:
+            return request_failed(10, "GIF_NOT_FOUND", data={"data": {}})
+
+        gif.category = category
+        gif.tags = tags
+        gif.save()
+
+        return_data = {
+            "data": {
+                "id": gif.id
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
 def image_upload_resize(req: HttpRequest):
     '''
     request:
