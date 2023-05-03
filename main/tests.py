@@ -321,10 +321,6 @@ class ViewsTests(TestCase):
         '''
             Create a GET/image/upload HttpRequest
         '''
-        # with open('/files/tests/Cake.jpg', 'rb') as f:
-        #     file_data = f.read()
-        # uploaded_file = SimpleUploadedFile('Strawberry.jpg', file_data)
-
         with open(url, 'rb') as reader:
             file_data = reader.read()
         uploaded_file = SimpleUploadedFile(url, file_data)
@@ -352,6 +348,36 @@ class ViewsTests(TestCase):
             'tags': tags
         }
         return self.client.post('/image/upload', data=req, format='multipart', HTTP_AUTHORIZATION=token)
+
+    def image_update_with_correct_response_method(self, gif_id, category, tags, token):
+        '''
+            Create a POST/image/update HttpRequest
+        '''
+        req = {
+            'category': category,
+            'tags': tags
+        }
+        return self.client.post('/image/update/' + gif_id, data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def image_update_with_wrong_response_method(self, gif_id, category, tags, token):
+        '''
+            Create a GET/image/update HttpRequest
+        '''
+        req = {
+            'category': category,
+            'tags': tags
+        }
+        return self.client.get('/image/update/' + gif_id, data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def image_update_with_wrong_type(self, gif_id, category, tags, token):
+        '''
+            Create a POST/image/upload HttpRequest
+        '''
+        req = {
+            'categori': category,
+            'tags': tags
+        }
+        return self.client.post('/image/update/' + gif_id, data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
     def image_detail_with_wrong_response_method(self, image_id):
         '''
@@ -1227,6 +1253,19 @@ class ViewsTests(TestCase):
         res = self.image_upload_with_correct_response_method(url="files/tests/Strawberry.gif", title="Strawberry", category="food", tags=["food", "strawberry"], token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_update(self):
+        '''
+            Test image update function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_update_with_correct_response_method(gif_id="1", category="food", tags=["food", "strawberry"], token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["id"], 1)
         helpers.delete_token_from_white_list(token)
 
     def test_image_detail(self):
