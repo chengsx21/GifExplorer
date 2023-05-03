@@ -21,6 +21,7 @@ urlpatterns = [
     path('user/unfollow/<user_id>', views.user_unfollow),
     path('user/readhistory', views.user_read_history),
     path('image/upload', views.image_upload),
+    path('image/update/<gif_id>', views.image_update_metadata),
     path('image/resize', views.image_upload_resize),
     path('image/resizecheck/<task_id>', views.image_upload_resize_check),
     path('image/video', views.image_upload_video),

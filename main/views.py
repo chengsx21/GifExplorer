@@ -712,6 +712,65 @@ def image_upload(req: HttpRequest):
 
 @csrf_exempt
 @handle_errors
+def image_update_metadata(req, gif_id):
+    '''
+    request:
+        {
+            "category": "animals",
+            "tags": ["funny", "cat"]
+        }
+    response:
+        {
+            "code": 0,
+            "info": "SUCCESS",
+            "data": {
+                "id": 1
+        }
+    '''
+    if req.method == "POST":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        try:
+            body = json.loads(req.body.decode("utf-8"))
+            category = body["category"]
+            tags = body["tags"]
+        except (TypeError, ValueError) as error:
+            print(error)
+            return format_error(str(error))
+
+        if not (category and tags and isinstance(category, str) and isinstance(tags, list)):
+            return format_error()
+        for tag in tags:
+            if not isinstance(tag, str):
+                return format_error()
+        user = UserInfo.objects.filter(id=token["id"]).first()
+        if not user:
+            return unauthorized_error()
+        gif = GifMetadata.objects.filter(id=gif_id).first()
+        if not gif:
+            return request_failed(10, "GIF_NOT_FOUND", data={"data": {}})
+
+        gif.category = category
+        gif.tags = tags
+        gif.save()
+
+        return_data = {
+            "data": {
+                "id": gif.id
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
 def image_upload_resize(req: HttpRequest):
     '''
     request:
@@ -1258,15 +1317,33 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
     video = imageio.get_reader(hashed_name + ".mp4")
     fps = video.get_meta_data()['fps']
     gif_frames = []
-    for frame in video:
-        gif_frames.append(frame[:, :, :3])
-    imageio.mimsave(hashed_name + ".gif", gif_frames, fps=fps)
+    for i, frame in enumerate(video):
+        height = frame.shape[0]
+        width = frame.shape[1]
+        if i % 3 == 0:
+            gif_frames.append(frame[:, :, :3])
+    imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps)
+
+    path = hashed_name + ".gif"
+    resize_path = "resized_" + hashed_name + ".gif"
+    max_size = min(width, height, 150)
+    ratio = width / height
+    new_width = int(max_size * math.sqrt(ratio))
+    new_height = int(max_size / math.sqrt(ratio))
+    resize_size = (new_width, new_height)
+    with Image.open(path) as img:
+        frames = []
+        for frame in ImageSequence.Iterator(img):
+            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+            frames.append(resized_frame)
+        frames[0].save(resize_path, save_all=True, append_images=frames[1:])
+
 
     gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
-    gif_file = GifFile.objects.create(metadata=gif, file=hashed_name + ".gif")
+    gif_file = GifFile.objects.create(metadata=gif, file=resize_path)
 
-    with open(hashed_name + ".gif", 'rb') as temp_gif:
-        gif_file.file.save(hashed_name + ".gif", ContentFile(temp_gif.read()))
+    with open(resize_path, 'rb') as temp_gif:
+        gif_file.file.save(resize_path, ContentFile(temp_gif.read()))
     gif_file.save()
 
     with Image.open(gif_file.file) as image:
@@ -1277,7 +1354,8 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
     gif.name = gif_file.file.name
     gif.save()
     os.remove(hashed_name + ".mp4")
-    os.remove(hashed_name + ".gif")
+    os.remove(path)
+    os.remove(resize_path)
 
     upload_user = UserInfo.objects.filter(id=user).first()
     if os.getenv('DEPLOY') is not None:
