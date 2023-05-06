@@ -11,7 +11,7 @@ import magic
 from PIL import Image
 import jwt
 from utils.utils_request import internal_error
-from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY, SEARCH_ENGINE
+from .config import MAX_GIFS_PER_PAGE, SECRET_KEY, SEARCH_ENGINE
 from .models import UserInfo, UserToken, GifMetadata, GifFingerprint
 
 def handle_errors(view_func):
@@ -276,4 +276,3 @@ def post_search_metadata(user: UserInfo, gif: GifMetadata):
     }
     search_engine = SEARCH_ENGINE
     search_engine.post_metadata(data)
-
