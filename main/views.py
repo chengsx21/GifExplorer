@@ -23,7 +23,7 @@ from django.core.mail import send_mail
 from django.core.files import File
 from django.utils.html import format_html
 from django.db.models import Q
-from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success, internal_error
+from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success
 from GifExplorer import settings
 from . import helpers
 from .helpers import handle_errors
@@ -543,7 +543,32 @@ def user_unfollow(req: HttpRequest, user_id: any):
 def user_message(req: HttpRequest):
     '''
     request:
-    
+        {
+            "user_id": 2,
+            "message": "Test Message"
+        }
+        User token is needed.
+    response:
+        {
+            "code": 0,
+            "info": "Succeed",
+            "data": {
+                "2": [
+                    {
+                        "sender": 2,
+                        "receiver": 1,
+                        "message": "Test",
+                        "pub_time": "2023-05-04T16:15:01.718Z"
+                    },
+                    {
+                        "sender": 1,
+                        "receiver": 2,
+                        "message": "Test Again",
+                        "pub_time": "2023-05-04T15:56:53.066Z"
+                    }
+                ]
+            }
+        }
     '''
     if req.method == "POST":
         try:
@@ -574,6 +599,8 @@ def user_message(req: HttpRequest):
         receiver = UserInfo.objects.filter(id=user_id).first()
         if not receiver:
             return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
+        if receiver == sender:
+            return request_failed(22, "CANNOT_MESSAGE_SELF", data={"data": {}})
         new_message = Message.objects.create(sender=sender, receiver=receiver, message=message)
         return_data = {
             "data": {
@@ -603,15 +630,66 @@ def user_message(req: HttpRequest):
         for message in user_messages:
             other_user = message.sender if message.sender != user else message.receiver
             if other_user.id not in messages:
-                messages[other_user.id] = []
-            messages[other_user.id].append({
+                messages[other_user.id] = {
+                    "is_read": True,
+                    "message": []
+                }
+            messages[other_user.id]["message"].append({
                 "sender": message.sender.id,
                 "receiver": message.receiver.id,
                 "message": message.message,
                 "pub_time": message.pub_time
             })
-        return_data = { "data": messages }
+            if message.receiver == user and message.is_read is False:
+                messages[other_user.id]["is_read"] = False
+        return_data = {
+            "data": messages
+        }
         return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_read_message(req: HttpRequest, user_id: any):
+    '''
+    request:
+        User token is needed.
+    response:
+        {
+            "code": 0,
+            "info": "Succeed",
+            "data": {}
+        }
+    '''
+    if req.method == "POST":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        user_name = token["user_name"]
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return unauthorized_error()
+
+        if not isinstance(user_id, str) or not user_id.isdigit():
+            return format_error()
+        user_id = int(user_id)
+
+        other_user = UserInfo.objects.filter(id=user_id).first()
+        if not other_user:
+            return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
+        if other_user == user:
+            return request_failed(22, "CANNOT_MESSAGE_SELF", data={"data": {}})
+        user_messages = Message.objects.filter(receiver=user, sender=other_user).order_by("-pub_time")
+        for message in user_messages:
+            message.is_read = True
+            message.save()
+        return request_success(data={"data": {}})
     return not_found_error()
 
 @csrf_exempt
@@ -832,7 +910,7 @@ def image_update_metadata(req, gif_id):
             return unauthorized_error()
         gif = GifMetadata.objects.filter(id=gif_id).first()
         if not gif:
-            return request_failed(10, "GIF_NOT_FOUND", data={"data": {}})
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
         gif.category = category
         gif.tags = tags
@@ -2044,9 +2122,9 @@ def image_search(req: HttpRequest):
         # tags 默认为 [] ，表示没有本项限制。
         if "tags" not in body:
             body["tags"] = []
-        # type 默认为 "perfect" 
+        # type 默认为 "perfect"
         if "type" not in body:
-            body["type"] = "perfect" 
+            body["type"] = "perfect"
         # type 必须为 "perfect", "partial", "fuzzy" 三者之一
         try:
             assert body["type"] in ["perfect", "partial", "fuzzy"]
@@ -2117,7 +2195,7 @@ def search_suggest(req: HttpRequest):
             return format_error()
         if "query" not in body:
             body["query"] = ""
-        
+
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
 
@@ -2129,4 +2207,3 @@ def search_suggest(req: HttpRequest):
                     "suggestions": suggestion_list
                 }
             })
-    

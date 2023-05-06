@@ -20,6 +20,7 @@ urlpatterns = [
     path('user/follow/<user_id>', views.user_follow),
     path('user/unfollow/<user_id>', views.user_unfollow),
     path('user/message', views.user_message),
+    path('user/readmessage/<user_id>', views.user_read_message),
     path('user/readhistory', views.user_read_history),
     path('image/upload', views.image_upload),
     path('image/update/<gif_id>', views.image_update_metadata),
