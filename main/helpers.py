@@ -11,8 +11,8 @@ import magic
 from PIL import Image
 import jwt
 from utils.utils_request import internal_error
-from .config import MAX_GIFS_PER_PAGE, USER_WHITE_LIST, SECRET_KEY, SEARCH_ENGINE
-from .models import UserInfo, GifMetadata, GifFingerprint
+from .config import MAX_GIFS_PER_PAGE, SECRET_KEY, SEARCH_ENGINE
+from .models import UserInfo, UserToken, GifMetadata, GifFingerprint
 
 def handle_errors(view_func):
     '''
@@ -106,10 +106,10 @@ def add_token_to_white_list(token):
     '''
     decoded_token = decode_token(token)
     user_id = decoded_token["id"]
-    if user_id not in USER_WHITE_LIST:
-        USER_WHITE_LIST[user_id] = []
-    if token not in USER_WHITE_LIST[user_id]:
-        USER_WHITE_LIST[user_id].append(token)
+    user_token = UserToken.objects.filter(user_id=user_id).first()
+    if not user_token:
+        user_token = UserToken(user_id=user_id, token=token)
+        user_token.save()
 
 def is_token_valid(token):
     '''
@@ -117,11 +117,10 @@ def is_token_valid(token):
     '''
     decoded_token = decode_token(token)
     user_id = decoded_token["id"]
-    if user_id not in USER_WHITE_LIST:
+    user_token = UserToken.objects.filter(user_id=user_id).first()
+    if not user_token:
         return False
-    if token in USER_WHITE_LIST[user_id]:
-        return True
-    return False
+    return True
 
 def delete_token_from_white_list(token):
     '''
@@ -129,13 +128,11 @@ def delete_token_from_white_list(token):
     '''
     decoded_token = decode_token(token)
     user_id = decoded_token["id"]
-    if user_id not in USER_WHITE_LIST:
+    user_tokens = UserToken.objects.filter(user_id=user_id)
+    if not user_tokens.first():
         return False
-    if token in USER_WHITE_LIST[user_id]:
-        while token in USER_WHITE_LIST[user_id]:
-            USER_WHITE_LIST[user_id].remove(token)
-        return True
-    return False
+    for user_token in user_tokens:
+        user_token.delete()
 
 def add_gif_fingerprint_to_list(fingerprint):
     '''
@@ -279,4 +276,3 @@ def post_search_metadata(user: UserInfo, gif: GifMetadata):
     }
     search_engine = SEARCH_ENGINE
     search_engine.post_metadata(data)
-

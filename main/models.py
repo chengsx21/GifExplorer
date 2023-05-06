@@ -54,6 +54,20 @@ class UserVerification(models.Model):
         '''
         db_table = "user_verification"
 
+class UserToken(models.Model):
+    '''
+        model for user token
+    '''
+    user_id = models.PositiveIntegerField(default=0)
+    token = models.CharField(max_length=200)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "usertoken"
+
 class GifMetadata(models.Model):
     '''
         model for gif metadata
@@ -118,3 +132,20 @@ class GifFingerprint(models.Model):
             set table name in db
         '''
         db_table = "giffingerprint"
+
+class Message(models.Model):
+    '''
+        model for message
+    '''
+    sender = models.ForeignKey(UserInfo, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(UserInfo, on_delete=models.CASCADE, related_name='received_messages')
+    message = models.TextField(max_length=200)
+    is_read = models.BooleanField(default=False)
+    pub_time = models.DateTimeField(auto_now_add=True)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "message"
