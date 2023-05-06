@@ -287,6 +287,50 @@ class ViewsTests(TestCase):
         url = f'/user/readhistory?id={gif_id}'
         return self.client.post(url, HTTP_AUTHORIZATION=token)
 
+    def user_post_message_with_wrong_response_method(self, user_id, message, token):
+        '''
+            Create a DELETE/user/message HttpRequest
+        '''
+        req = {
+            "user_id": user_id,
+            "message": message
+        }
+        return self.client.delete('/user/message', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def user_post_message_with_correct_response_method(self, user_id, message, token):
+        '''
+            Create a POST/user/message HttpRequest
+        '''
+        req = {
+            "user_id": user_id,
+            "message": message
+        }
+        return self.client.post('/user/message', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def user_get_message_with_wrong_response_method(self, token):
+        '''
+            Create a DELETE/user/message HttpRequest
+        '''
+        return self.client.delete('/user/message', HTTP_AUTHORIZATION=token)
+
+    def user_get_message_with_correct_response_method(self, token):
+        '''
+            Create a GET/user/message HttpRequest
+        '''
+        return self.client.get('/user/message', HTTP_AUTHORIZATION=token)
+
+    def user_read_message_with_wrong_response_method(self, user_id, token):
+        '''
+            Create a DELETE/user/readmessage HttpRequest
+        '''
+        return self.client.delete('/user/readmessage/' + str(user_id), HTTP_AUTHORIZATION=token)
+
+    def user_read_message_with_correct_response_method(self, user_id, token):
+        '''
+            Create a POST/user/readmessage HttpRequest
+        '''
+        return self.client.post('/user/readmessage/' + str(user_id), HTTP_AUTHORIZATION=token)
+
     def user_history_with_wrong_response_method(self, page, token):
         '''
             Create a DELETE/user/history HttpRequest
@@ -1146,6 +1190,69 @@ class ViewsTests(TestCase):
         self.assertEqual(res.json()["code"], 13)
         helpers.delete_token_from_white_list(token)
 
+    def test_user_message(self):
+        '''
+            Test user message function
+        '''
+        token = self.user_token[0]
+        other_token = self.user_token[1]
+        helpers.add_token_to_white_list(token)
+        helpers.add_token_to_white_list(other_token)
+
+        res = self.user_post_message_with_correct_response_method(user_id=2, message="Test", token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.user_get_message_with_correct_response_method(token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["2"]["is_read"], True)
+        res = self.user_post_message_with_correct_response_method(user_id=1, message="Test", token=other_token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        res = self.user_get_message_with_correct_response_method(token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["2"]["is_read"], False)
+        self.user_read_message_with_correct_response_method(user_id=2, token=token)
+        res = self.user_get_message_with_correct_response_method(token=token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["2"]["is_read"], True)
+        helpers.delete_token_from_white_list(token)
+        helpers.delete_token_from_white_list(other_token)
+
+    def test_user_message_with_invalid_token(self):
+        '''
+            Test user message with invalid token
+        '''
+        token = "INVALID_TOKEN"
+        res = self.user_post_message_with_correct_response_method(user_id=2, message="Test", token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.user_get_message_with_correct_response_method(token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.user_read_message_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+
+    def test_user_message_with_user_not_exist(self):
+        '''
+            Test user message with user not exist
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+        helpers.add_token_to_white_list(token)
+        res = self.user_post_message_with_correct_response_method(user_id=2, message="Test", token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.user_get_message_with_correct_response_method(token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        res = self.user_read_message_with_correct_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
     def test_user_history(self):
         '''
             Test user history function
@@ -1267,6 +1374,17 @@ class ViewsTests(TestCase):
         res = self.image_update_with_correct_response_method(gif_id="1", category="food", tags=["food", "strawberry"], token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_update_with_gif_not_exist(self):
+        '''
+            Test image update when gif not exist
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        res = self.image_update_with_correct_response_method(gif_id="1000", category="food", tags=["food", "strawberry"], token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
         helpers.delete_token_from_white_list(token)
 
     def test_image_update_with_wrong_response_method(self):
