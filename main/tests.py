@@ -297,6 +297,16 @@ class ViewsTests(TestCase):
         }
         return self.client.delete('/user/message', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
+    def user_post_message_with_wrong_type(self, user_id, message, token):
+        '''
+            Create a POST/user/message HttpRequest
+        '''
+        req = {
+            "user": user_id,
+            "message": message
+        }
+        return self.client.post('/user/message', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
     def user_post_message_with_correct_response_method(self, user_id, message, token):
         '''
             Create a POST/user/message HttpRequest
@@ -1236,9 +1246,9 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
 
-    def test_user_message_with_user_not_exist(self):
+    def test_user_message_with_sender_not_exist(self):
         '''
-            Test user message with user not exist
+            Test user message with sender not exist
         '''
         token = helpers.create_token(user_name="NotExist!", user_id=114514)
         helpers.add_token_to_white_list(token)
@@ -1251,6 +1261,66 @@ class ViewsTests(TestCase):
         res = self.user_read_message_with_correct_response_method(user_id=2, token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_message_with_receiver_not_exist(self):
+        '''
+            Test user message with receiver not exist
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        res = self.user_post_message_with_correct_response_method(user_id=1000, message="Test", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+        res = self.user_read_message_with_correct_response_method(user_id=1000, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_message_with_receiver_self(self):
+        '''
+            Test user message with receiver not exist
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        res = self.user_post_message_with_correct_response_method(user_id=1, message="Test", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 22)
+        res = self.user_read_message_with_correct_response_method(user_id=1, token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 22)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_message_with_wrong_type(self):
+        '''
+            Test user message with wrong type
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        res = self.user_post_message_with_wrong_type(user_id=2, message="Test", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        res = self.user_post_message_with_correct_response_method(user_id="haha", message="Test", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_message_with_wrong_response_method(self):
+        '''
+            Test user message with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_post_message_with_wrong_response_method(user_id=2, message="Test", token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.user_get_message_with_wrong_response_method(token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.user_read_message_with_wrong_response_method(user_id=2, token=token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
         helpers.delete_token_from_white_list(token)
 
     def test_user_history(self):
