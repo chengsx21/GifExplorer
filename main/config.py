@@ -7,11 +7,14 @@ from .search import ElasticSearchEngine
 if not DEBUG:
     USER_VERIFICATION_MAX_TIME = 300
 else:
-    USER_VERIFICATION_MAX_TIME = 6
+    USER_VERIFICATION_MAX_TIME = 3
+
+if not DEBUG:
+    GIF_EXTERNAL_LINK_MAX_TIME = 86400
+else:
+    GIF_EXTERNAL_LINK_MAX_TIME = 3
 
 MAX_GIFS_PER_PAGE = 20
-
-USER_WHITE_LIST = {}
 
 SEARCH_ENGINE = ElasticSearchEngine()
 

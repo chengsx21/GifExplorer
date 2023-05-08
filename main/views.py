@@ -23,12 +23,13 @@ from django.core.mail import send_mail
 from django.core.files import File
 from django.utils.html import format_html
 from django.db.models import Q
+from django.http import HttpResponseRedirect
 from utils.utils_request import not_found_error, unauthorized_error, format_error, request_failed, request_success
 from GifExplorer import settings
 from . import helpers
 from .helpers import handle_errors
 from . import config
-from .models import UserInfo, UserVerification, GifMetadata, GifFile, GifComment, Message
+from .models import UserInfo, UserVerification, GifMetadata, GifFile, GifComment, Message, GifShare
 
 # Create your views here.
 @csrf_exempt
@@ -1243,7 +1244,19 @@ def image_preview(req: HttpRequest, gif_id: any):
         Return a HttpResponse including the gif for preview
     '''
     if req.method == "GET":
-        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+        if not isinstance(gif_id, str):
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        if len(gif_id) == 12:
+            gif_share = GifShare.objects.filter(token=gif_id).first()
+            if not gif_share:
+                return HttpResponseRedirect('https://gifexplorer-frontend-nullptr.app.secoder.net/image/not-found')
+            pub_time = gif_share.pub_time.timestamp()
+            current_time = datetime.datetime.now().timestamp()
+            if current_time - pub_time > config.GIF_EXTERNAL_LINK_MAX_TIME:
+                gif_share.delete()
+                return HttpResponseRedirect('https://gifexplorer-frontend-nullptr.app.secoder.net/image/not-found')
+            gif_id = gif_share.gif_ids[0]
+        if not gif_id.isdecimal():
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
         gif = GifMetadata.objects.filter(id=int(gif_id)).first()
@@ -1266,7 +1279,19 @@ def image_download(req: HttpRequest, gif_id: any):
         Return a HttpResponse including the gif for download
     '''
     if req.method == "GET":
-        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+        if not isinstance(gif_id, str):
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        if len(gif_id) == 12:
+            gif_share = GifShare.objects.filter(token=gif_id).first()
+            if not gif_share:
+                return HttpResponseRedirect('https://gifexplorer-frontend-nullptr.app.secoder.net/image/not-found')
+            pub_time = gif_share.pub_time.timestamp()
+            current_time = datetime.datetime.now().timestamp()
+            if current_time - pub_time > config.GIF_EXTERNAL_LINK_MAX_TIME:
+                gif_share.delete()
+                return HttpResponseRedirect('https://gifexplorer-frontend-nullptr.app.secoder.net/image/not-found')
+            gif_id = gif_share.gif_ids[0]
+        if not gif_id.isdecimal():
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
         gif = GifMetadata.objects.filter(id=int(gif_id)).first()
@@ -1281,6 +1306,39 @@ def image_download(req: HttpRequest, gif_id: any):
 
 @csrf_exempt
 @handle_errors
+def image_create_link(req: HttpRequest, gif_id: any):
+    '''
+    request:
+        - gif_id: the id of the gif
+    response:
+        - return the preview and download link of the gif
+    '''
+    if req.method == "GET":
+        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+            return format_error()
+
+        gif = GifMetadata.objects.filter(id=int(gif_id)).first()
+        if not gif:
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        token = helpers.generate_token()
+        GifShare.objects.create(token=token, gif_ids=[gif_id])
+        if os.getenv('DEPLOY') is None:
+            preview_url = "http://127.0.0.1:8000/image/preview/" + token
+            download_url = "http://127.0.0.1:8000/image/download/" + token
+        else:
+            preview_url = "https://gifexplorer-backend-nullptr.app.secoder.net/image/preview/" + token
+            download_url = "https://gifexplorer-backend-nullptr.app.secoder.net/image/download/" + token
+        return_data = {
+            "data": {
+                "preview_link": preview_url,
+                "download_link": download_url
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
 def image_download_zip(req: HttpRequest):
     '''
     request:
@@ -1288,7 +1346,22 @@ def image_download_zip(req: HttpRequest):
     response:
         Return a HttpResponse including a zip file containing the requested gifs for download
     '''
-    if req.method == "POST":
+    if req.method == "GET":
+        token = req.GET.get("token")
+        gif_share = GifShare.objects.filter(token=token).first()
+        if not gif_share:
+            return HttpResponseRedirect('https://gifexplorer-frontend-nullptr.app.secoder.net/image/not-found')
+        pub_time = gif_share.pub_time.timestamp()
+        current_time = datetime.datetime.now().timestamp()
+        if current_time - pub_time > config.GIF_EXTERNAL_LINK_MAX_TIME:
+            gif_share.delete()
+            return HttpResponseRedirect('https://gifexplorer-frontend-nullptr.app.secoder.net/image/not-found')
+        gif_ids = gif_share.gif_ids
+        gifs = GifMetadata.objects.filter(id__in=gif_ids)
+
+        if len(gifs) != len(gif_ids):
+            return HttpResponseRedirect('https://gifexplorer-frontend-nullptr.app.secoder.net/image/not-found')
+    elif req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
         gif_ids = body["gif_ids"]
         if not gif_ids:
@@ -1298,18 +1371,51 @@ def image_download_zip(req: HttpRequest):
 
         if len(gifs) != len(gif_ids):
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+    else:
+        return not_found_error()
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, mode='w') as zip_file:
+        for gif in gifs:
+            hashed_title = str(uuid.uuid4())[0:6] + '_' + gif.title
+            gif_file = open(gif.giffile.file.path, 'rb')
+            zip_file.writestr(f"{hashed_title}.gif", gif_file.read())
+            gif_file.close()
 
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, mode='w') as zip_file:
-            for gif in gifs:
-                gif_file = open(gif.giffile.file.path, 'rb')
-                zip_file.writestr(f"{gif.title}.gif", gif_file.read())
-                gif_file.close()
+    response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip', headers={'Access-Control-Allow-Origin': '*'})
+    cur_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    response['Content-Disposition'] = f'attachment; filename="{cur_time}.zip"'
+    return response
 
-        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip', headers={'Access-Control-Allow-Origin': '*'})
-        cur_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        response['Content-Disposition'] = f'attachment; filename="{cur_time}.zip"'
-        return response
+@csrf_exempt
+@handle_errors
+def image_create_zip_link(req: HttpRequest):
+    '''
+    request:
+        - gif_id: the id of the gif
+    response:
+        - return the preview and download link of the gif
+    '''
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        gif_ids = body["gif_ids"]
+        if not gif_ids or not isinstance(gif_ids, list):
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        gifs = GifMetadata.objects.filter(id__in=gif_ids)
+        if len(gifs) != len(gif_ids):
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+        token = helpers.generate_token()
+        GifShare.objects.create(token=token, gif_ids=gif_ids)
+        if os.getenv('DEPLOY') is None:
+            downloadzip_url = "http://127.0.0.1:8000/image/downloadzip?token=" + token
+        else:
+            downloadzip_url = "https://gifexplorer-backend-nullptr.app.secoder.net/image/downloadzip?token=" + token
+        return_data = {
+            "data": {
+                "downloadzip_link": downloadzip_url
+            }
+        }
+        return request_success(return_data)
     return not_found_error()
 
 @csrf_exempt
