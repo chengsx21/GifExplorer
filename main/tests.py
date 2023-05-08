@@ -473,12 +473,12 @@ class ViewsTests(TestCase):
 
     def image_downloadzip_with_wrong_response_method(self, image_ids):
         '''
-            Create a GET/image/downloadzip HttpRequest
+            Create a PUT/image/downloadzip HttpRequest
         '''
         req = {
             "gif_ids": image_ids
         }
-        return self.client.get('/image/downloadzip', data=req, content_type="application/json")
+        return self.client.put('/image/downloadzip', data=req, content_type="application/json")
 
     def image_downloadzip_with_correct_response_method(self, image_ids):
         '''
