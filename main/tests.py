@@ -1376,6 +1376,18 @@ class ViewsTests(TestCase):
         self.assertEqual(len(res.json()["data"]["page_data"]), 2)
         helpers.delete_token_from_white_list(token)
 
+    def test_user_history_with_wrong_page_index(self):
+        '''
+            Test user history with wrong page index
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_history_with_correct_response_method(1.5, token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 6)
+        helpers.delete_token_from_white_list(token)
+
     def test_user_history_with_wrong_response_method(self):
         '''
             Test user history with wrong response method
@@ -1438,6 +1450,18 @@ class ViewsTests(TestCase):
         res = self.image_upload_with_wrong_type(url="files/tests/Strawberry.gif", title="Strawberry", category="food", tags=["food", "yummy"], token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1005)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_upload_with_wrong_format(self):
+        '''
+            Test image upload with wrong format
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_upload_with_correct_response_method(url="files/tests/Not a gif.png", title="Not_a_gif", category="food", tags=["food", "yummy"], token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 10)
         helpers.delete_token_from_white_list(token)
 
     def test_image_upload_with_invalid_token(self):
