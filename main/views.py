@@ -1400,6 +1400,9 @@ def image_create_zip_link(req: HttpRequest):
         gif_ids = body["gif_ids"]
         if not gif_ids or not isinstance(gif_ids, list):
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        gifs = GifMetadata.objects.filter(id__in=gif_ids)
+        if len(gifs) != len(gif_ids):
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
 
         token = helpers.generate_token()
         GifShare.objects.create(token=token, gif_ids=gif_ids)
