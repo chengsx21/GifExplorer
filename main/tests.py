@@ -471,14 +471,26 @@ class ViewsTests(TestCase):
         '''
         return self.client.get('/image/download/'+image_id)
 
+    def image_create_link_with_wrong_response_method(self, image_id):
+        '''
+            Create a POST/image/createlink HttpRequest
+        '''
+        return self.client.post('/image/createlink/'+image_id)
+
+    def image_create_link_with_correct_response_method(self, image_id):
+        '''
+            Create a GET/image/createlink HttpRequest
+        '''
+        return self.client.get('/image/createlink/'+image_id)
+
     def image_downloadzip_with_wrong_response_method(self, image_ids):
         '''
-            Create a GET/image/downloadzip HttpRequest
+            Create a PUT/image/downloadzip HttpRequest
         '''
         req = {
             "gif_ids": image_ids
         }
-        return self.client.get('/image/downloadzip', data=req, content_type="application/json")
+        return self.client.put('/image/downloadzip', data=req, content_type="application/json")
 
     def image_downloadzip_with_correct_response_method(self, image_ids):
         '''
@@ -488,6 +500,24 @@ class ViewsTests(TestCase):
             "gif_ids": image_ids
         }
         return self.client.post('/image/downloadzip', data=req, content_type="application/json")
+
+    def image_create_zip_link_with_wrong_response_method(self, image_ids):
+        '''
+            Create a PUT/image/createziplink HttpRequest
+        '''
+        req = {
+            "gif_ids": image_ids
+        }
+        return self.client.put('/image/createziplink', data=req, content_type="application/json")
+
+    def image_create_zip_link_with_correct_response_method(self, image_ids):
+        '''
+            Create a POST/image/createziplink HttpRequest
+        '''
+        req = {
+            "gif_ids": image_ids
+        }
+        return self.client.post('/image/createziplink', data=req, content_type="application/json")
 
     def image_like_with_wrong_response_method(self, image_id, token):
         '''
@@ -770,7 +800,7 @@ class ViewsTests(TestCase):
                                                             salt="vcs7d206",
                                                             created_at=datetime.datetime.now())
         vertificated_user.save()
-        time.sleep(6)
+        time.sleep(3)
 
         res = self.user_mail_verify_with_correct_response_method(token=verification_token)
         self.assertEqual(res.status_code, 400)
@@ -1670,6 +1700,63 @@ class ViewsTests(TestCase):
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.json()["code"], 1000)
 
+    def test_image_create_link(self):
+        '''
+            Test image create link
+        '''
+        res = self.image_create_link_with_correct_response_method(image_id=str(1))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 2)
+        preview_url = res.json()["data"]["preview_link"]
+        download_url = res.json()["data"]["download_link"]
+        res = self.client.get(preview_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'image/gif')
+        res = self.client.get(download_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'application/octet-stream')
+
+    def test_image_create_link_with_wrong_type(self):
+        '''
+            Test image create link with wrong type
+        '''
+        res = self.image_create_link_with_wrong_response_method(image_id=str(1))
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_create_link_with_wrong_format(self):
+        '''
+            Test image create link with wrong format
+        '''
+        res = self.image_create_link_with_correct_response_method(image_id="Not a number")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_create_link_with_gif_not_exist(self):
+        '''
+            Test image create link with gif not exist
+        '''
+        res = self.image_create_link_with_correct_response_method(image_id=str(100))
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
+
+    def test_image_create_link_with_too_long_time(self):
+        '''
+            Test image create link with too long time
+        '''
+        res = self.image_create_link_with_correct_response_method(image_id=str(1))
+        preview_url = res.json()["data"]["preview_link"]
+        download_url = res.json()["data"]["download_link"]
+        time.sleep(3)
+        for _ in range(2):
+            res = self.client.get(preview_url)
+            self.assertEqual(res.status_code, 302)
+            self.assertEqual(res['Content-Type'], 'text/html; charset=utf-8')
+            res = self.client.get(download_url)
+            self.assertEqual(res.status_code, 302)
+            self.assertEqual(res['Content-Type'], 'text/html; charset=utf-8')
+
     def test_image_downloadzip(self):
         '''
             Test image downloadzip
@@ -1704,6 +1791,68 @@ class ViewsTests(TestCase):
         res = self.image_downloadzip_with_wrong_response_method(image_ids=image_ids)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_create_zip_link(self):
+        '''
+            Test image create zip link
+        '''
+        image_ids = []
+        for i in self.image_id:
+            image_ids.append(i)
+        res = self.image_create_zip_link_with_correct_response_method(image_ids=image_ids)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.json()["data"]), 1)
+        downloadzip_url = res.json()["data"]["downloadzip_link"]
+        res = self.client.get(downloadzip_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'application/zip')
+
+    def test_image_create_zip_link_with_image_not_eixst(self):
+        '''
+            Test image downloadzip with image not eixst
+        '''
+        image_ids = []
+        image_ids.append(114514)
+        res = self.image_create_zip_link_with_correct_response_method(image_ids=image_ids)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
+
+    def test_image_create_zip_link_with_wrong_method(self):
+        '''
+            Test image downloadzip with wrong method
+        '''
+        image_ids = []
+        for i in self.image_id:
+            image_ids.append(i)
+        res = self.image_create_zip_link_with_wrong_response_method(image_ids=image_ids)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_create_zip_link_with_wrong_format(self):
+        '''
+            Test image create zip link with wrong format
+        '''
+        res = self.image_create_zip_link_with_correct_response_method(image_ids="Not a list")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
+
+    def test_image_create_zip_link_with_too_long_time(self):
+        '''
+            Test image create zip link with too long time
+        '''
+        image_ids = []
+        for i in self.image_id:
+            image_ids.append(i)
+        res = self.image_create_zip_link_with_correct_response_method(image_ids=image_ids)
+        downloadzip_url = res.json()["data"]["downloadzip_link"]
+        time.sleep(3)
+        for _ in range(2):
+            res = self.client.get(downloadzip_url)
+            self.assertEqual(res.status_code, 302)
+            self.assertEqual(res['Content-Type'], 'text/html; charset=utf-8')
+            res = self.client.get(downloadzip_url)
+            self.assertEqual(res.status_code, 302)
+            self.assertEqual(res['Content-Type'], 'text/html; charset=utf-8')
 
     def test_image_like(self):
         '''

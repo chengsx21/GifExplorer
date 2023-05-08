@@ -10,6 +10,7 @@ from functools import wraps
 import magic
 from PIL import Image
 import jwt
+from django.utils.crypto import get_random_string
 from utils.utils_request import internal_error
 from .config import MAX_GIFS_PER_PAGE, SECRET_KEY, SEARCH_ENGINE
 from .models import UserInfo, UserToken, GifMetadata, GifFingerprint
@@ -276,3 +277,9 @@ def post_search_metadata(user: UserInfo, gif: GifMetadata):
     }
     search_engine = SEARCH_ENGINE
     search_engine.post_metadata(data)
+
+def generate_token():
+    '''
+        Generate a random token
+    '''
+    return get_random_string(length=12)

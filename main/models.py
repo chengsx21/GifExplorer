@@ -149,3 +149,18 @@ class Message(models.Model):
             set table name in db
         '''
         db_table = "message"
+
+class GifShare(models.Model):
+    '''
+        model for message
+    '''
+    token = models.TextField(max_length=200)
+    gif_ids = models.JSONField(default=list)
+    pub_time = models.DateTimeField(auto_now_add=True)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "gifshare"
