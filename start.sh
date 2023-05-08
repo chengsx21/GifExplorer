@@ -2,7 +2,9 @@
 python3 manage.py makemigrations main
 python3 manage.py migrate
 
-celery -A GifExplorer worker -l info -n worker1@%h -c 4  & \
+# python3 manage.py runserver 80
+# celery -A GifExplorer worker -l info -n worker1@%h -D --logfile=celery.log & \
+celery -A GifExplorer worker -l info -n worker1@%h & \
 uwsgi --module=GifExplorer.wsgi:application \
     --env DJANGO_SETTINGS_MODULE=GifExplorer.settings \
     --master \
