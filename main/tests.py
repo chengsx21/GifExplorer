@@ -447,6 +447,18 @@ class ViewsTests(TestCase):
         '''
         return self.client.delete('/image/detail/'+image_id, HTTP_AUTHORIZATION=token)
 
+    def image_previewlow_with_wrong_response_method(self, image_id):
+        '''
+            Create a POST/image/previewlow HttpRequest
+        '''
+        return self.client.post('/image/previewlow/'+image_id)
+
+    def image_previewlow_with_correct_response_method(self, image_id):
+        '''
+            Create a GET/image/previewlow HttpRequest
+        '''
+        return self.client.get('/image/previewlow/'+image_id)
+
     def image_preview_with_wrong_response_method(self, image_id):
         '''
             Create a POST/image/preview HttpRequest
@@ -1667,6 +1679,34 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         helpers.delete_token_from_white_list(token)
+
+    def test_image_previewlow(self):
+        '''
+            Test image previewlow
+        '''
+        for i in self.image_id:
+            res = self.image_previewlow_with_correct_response_method(image_id=str(i))
+            gif = GifMetadata.objects.all().filter(id=i).first()
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res['Content-Disposition'], f'inline; filename="{gif.name}"')
+            self.assertEqual(res['Content-Type'], 'image/gif')
+
+    def test_image_previewlow_with_image_not_eixst(self):
+        '''
+            Test image previewlow with user not eixst
+        '''
+        res = self.image_previewlow_with_correct_response_method(image_id=str(114514))
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
+
+    def test_image_previewlow_with_wrong_method(self):
+        '''
+            Test image previewlow with wrong method
+        '''
+        for i in self.image_id:
+            res = self.image_previewlow_with_wrong_response_method(image_id=str(i))
+            self.assertEqual(res.status_code, 404)
+            self.assertEqual(res.json()["code"], 1000)
 
     def test_image_preview(self):
         '''
