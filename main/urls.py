@@ -31,6 +31,7 @@ urlpatterns = [
     path('image/watermark/<gif_id>', views.image_watermark),
     path('image/watermarkcheck/<task_id>', views.image_watermark_check),
     path('image/detail/<gif_id>', views.image_detail),
+    path('image/previewlow/<gif_id>', views.image_preview_low_resolution),
     path('image/preview/<gif_id>', views.image_preview),
     path('image/download/<gif_id>', views.image_download),
     path('image/createlink/<gif_id>', views.image_create_link),

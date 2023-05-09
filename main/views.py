@@ -813,7 +813,13 @@ def image_upload(req: HttpRequest):
         gif_fingerprint = imagehash.average_hash(image, hash_size=16)
         fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
         if fingerprint.gif_id != 0:
-            return request_success(data={"data": {"id": fingerprint.gif_id}})
+            return_data = {
+                "data": {
+                    "id": fingerprint.gif_id,
+                    "duplication": True                    
+                }
+            }
+            return request_success(return_data)
 
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
         gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
@@ -835,7 +841,7 @@ def image_upload(req: HttpRequest):
         gif.name = name
         gif.save()
 
-        resize_path = path.rsplit("/", 1)[0] + "/resize_" + name
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
         max_size = min(width, height, 150)
         ratio = width / height
         new_width = int(max_size * math.sqrt(ratio))
@@ -854,13 +860,7 @@ def image_upload(req: HttpRequest):
         return_data = {
             "data": {
                 "id": gif.id,
-                "width": gif.width,
-                "height": gif.height,
-                "duration": gif.duration,
-                "category": gif.category,
-                "tags": gif.tags,
-                "uploader": user.id,
-                "pub_time": gif.pub_time
+                "duplication": False
             }
         }
         return request_success(return_data)
@@ -1018,7 +1018,7 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
     if fingerprint.gif_id != 0:
         return_data = {
             "id": fingerprint.gif_id,
-            "uploaded": True
+            "duplication": True
         }
         return return_data
 
@@ -1043,7 +1043,7 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
     gif.name = name
     gif.save()
 
-    resize_path = path.rsplit("/", 1)[0] + "/resize_" + name
+    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
     max_size = min(width, height, 150)
     ratio = width / height
     new_width = int(max_size * math.sqrt(ratio))
@@ -1063,13 +1063,7 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
 
     return_data = {
         "id": gif.id,
-        "width": gif.width,
-        "height": gif.height,
-        "duration": gif.duration,
-        "category": gif.category,
-        "tags": gif.tags,
-        "uploader": user,
-        "pub_time": gif.pub_time
+        "duplication": False
     }
     return return_data
 
@@ -1232,6 +1226,34 @@ def image_detail(req: HttpRequest, gif_id: any):
         os.remove(gif.giffile.file.path)
         gif.delete()
         return request_success(data={"data": {}})
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def image_preview_low_resolution(req: HttpRequest, gif_id: any):
+    '''
+    request:
+        None
+    response:
+        Return a HttpResponse including the gif for preview
+    '''
+    if req.method == "GET":
+        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+        gif = GifMetadata.objects.filter(id=int(gif_id)).first()
+        if not gif:
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        path = gif.giffile.file.path
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+        try:
+            gif_file = open(resize_path, 'rb')
+        except FileNotFoundError:
+            gif_file = open(path, 'rb')
+        file_wrapper = FileWrapper(gif_file)
+        response = HttpResponse(file_wrapper, content_type='image/gif', headers={'Access-Control-Allow-Origin': '*'})
+        response['Content-Disposition'] = f'inline; filename="{gif.name}"'
+        return response
     return not_found_error()
 
 @csrf_exempt
@@ -1583,11 +1605,11 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
         width = frame.shape[1]
         if i % 3 == 0:
             gif_frames.append(frame[:, :, :3])
-    imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps)
+    imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps, loop=0)
 
     path = hashed_name + ".gif"
-    resize_path = "resized_" + hashed_name + ".gif"
-    max_size = min(width, height, 150)
+    new_path = "_" + hashed_name + ".gif"
+    max_size = min(width, height, 300)
     ratio = width / height
     new_width = int(max_size * math.sqrt(ratio))
     new_height = int(max_size / math.sqrt(ratio))
@@ -1597,14 +1619,13 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
         for frame in ImageSequence.Iterator(img):
             resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
             frames.append(resized_frame)
-        frames[0].save(resize_path, save_all=True, append_images=frames[1:])
-
+        frames[0].save(new_path, save_all=True, append_images=frames[1:])
 
     gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
-    gif_file = GifFile.objects.create(metadata=gif, file=resize_path)
+    gif_file = GifFile.objects.create(metadata=gif, file=new_path)
 
-    with open(resize_path, 'rb') as temp_gif:
-        gif_file.file.save(resize_path, ContentFile(temp_gif.read()))
+    with open(new_path, 'rb') as temp_gif:
+        gif_file.file.save(new_path, ContentFile(temp_gif.read()))
     gif_file.save()
 
     with Image.open(gif_file.file) as image:
@@ -1616,7 +1637,21 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
     gif.save()
     os.remove(hashed_name + ".mp4")
     os.remove(path)
-    os.remove(resize_path)
+    os.remove(new_path)
+
+    path = gif_file.file.path
+    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+    max_size = min(width, height, 150)
+    ratio = width / height
+    new_width = int(max_size * math.sqrt(ratio))
+    new_height = int(max_size / math.sqrt(ratio))
+    resize_size = (new_width, new_height)
+    with Image.open(path) as img:
+        frames = []
+        for frame in ImageSequence.Iterator(img):
+            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+            frames.append(resized_frame)
+        frames[0].save(resize_path, save_all=True, append_images=frames[1:])
 
     upload_user = UserInfo.objects.filter(id=user).first()
     if os.getenv('DEPLOY') is not None:

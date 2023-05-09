@@ -447,6 +447,18 @@ class ViewsTests(TestCase):
         '''
         return self.client.delete('/image/detail/'+image_id, HTTP_AUTHORIZATION=token)
 
+    def image_previewlow_with_wrong_response_method(self, image_id):
+        '''
+            Create a POST/image/previewlow HttpRequest
+        '''
+        return self.client.post('/image/previewlow/'+image_id)
+
+    def image_previewlow_with_correct_response_method(self, image_id):
+        '''
+            Create a GET/image/previewlow HttpRequest
+        '''
+        return self.client.get('/image/previewlow/'+image_id)
+
     def image_preview_with_wrong_response_method(self, image_id):
         '''
             Create a POST/image/preview HttpRequest
@@ -1376,6 +1388,18 @@ class ViewsTests(TestCase):
         self.assertEqual(len(res.json()["data"]["page_data"]), 2)
         helpers.delete_token_from_white_list(token)
 
+    def test_user_history_with_wrong_page_index(self):
+        '''
+            Test user history with wrong page index
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_history_with_correct_response_method(1.5, token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 6)
+        helpers.delete_token_from_white_list(token)
+
     def test_user_history_with_wrong_response_method(self):
         '''
             Test user history with wrong response method
@@ -1402,7 +1426,7 @@ class ViewsTests(TestCase):
         res = self.image_upload_with_correct_response_method(url="files/tests/Strawberry.gif", title="Strawberry", category="food", tags=["food", "strawberry"], token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"]["uploader"], 1)
+        self.assertEqual(res.json()["data"]["duplication"], False)
         helpers.delete_token_from_white_list(token)
 
     def test_image_upload_with_user_not_exist(self):
@@ -1438,6 +1462,18 @@ class ViewsTests(TestCase):
         res = self.image_upload_with_wrong_type(url="files/tests/Strawberry.gif", title="Strawberry", category="food", tags=["food", "yummy"], token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1005)
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_upload_with_wrong_format(self):
+        '''
+            Test image upload with wrong format
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.image_upload_with_correct_response_method(url="files/tests/Not a gif.png", title="Not_a_gif", category="food", tags=["food", "yummy"], token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 10)
         helpers.delete_token_from_white_list(token)
 
     def test_image_upload_with_invalid_token(self):
@@ -1632,17 +1668,45 @@ class ViewsTests(TestCase):
         image_id = str(res.json()["data"]["id"])
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"]["uploader"], 1)
+        self.assertEqual(res.json()["data"]["duplication"], False)
 
         res = self.image_upload_with_correct_response_method(url="files/tests/Noodles.gif", title="Noodles", category="food", tags=["food", "noodles"], token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"], {'id': 4})
+        self.assertEqual(res.json()["data"]["duplication"], True)
 
         res = self.image_delete_with_correct_response_method(image_id=image_id, token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         helpers.delete_token_from_white_list(token)
+
+    def test_image_previewlow(self):
+        '''
+            Test image previewlow
+        '''
+        for i in self.image_id:
+            res = self.image_previewlow_with_correct_response_method(image_id=str(i))
+            gif = GifMetadata.objects.all().filter(id=i).first()
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res['Content-Disposition'], f'inline; filename="{gif.name}"')
+            self.assertEqual(res['Content-Type'], 'image/gif')
+
+    def test_image_previewlow_with_image_not_eixst(self):
+        '''
+            Test image previewlow with user not eixst
+        '''
+        res = self.image_previewlow_with_correct_response_method(image_id=str(114514))
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 9)
+
+    def test_image_previewlow_with_wrong_method(self):
+        '''
+            Test image previewlow with wrong method
+        '''
+        for i in self.image_id:
+            res = self.image_previewlow_with_wrong_response_method(image_id=str(i))
+            self.assertEqual(res.status_code, 404)
+            self.assertEqual(res.json()["code"], 1000)
 
     def test_image_preview(self):
         '''
