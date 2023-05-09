@@ -835,7 +835,7 @@ def image_upload(req: HttpRequest):
         gif.name = name
         gif.save()
 
-        resize_path = path.rsplit("/", 1)[0] + "/resize_" + name
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
         max_size = min(width, height, 150)
         ratio = width / height
         new_width = int(max_size * math.sqrt(ratio))
@@ -1043,7 +1043,7 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
     gif.name = name
     gif.save()
 
-    resize_path = path.rsplit("/", 1)[0] + "/resize_" + name
+    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
     max_size = min(width, height, 150)
     ratio = width / height
     new_width = int(max_size * math.sqrt(ratio))
