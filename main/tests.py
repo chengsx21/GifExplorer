@@ -1426,7 +1426,7 @@ class ViewsTests(TestCase):
         res = self.image_upload_with_correct_response_method(url="files/tests/Strawberry.gif", title="Strawberry", category="food", tags=["food", "strawberry"], token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"]["uploader"], 1)
+        self.assertEqual(res.json()["data"]["duplication"], False)
         helpers.delete_token_from_white_list(token)
 
     def test_image_upload_with_user_not_exist(self):
@@ -1668,12 +1668,12 @@ class ViewsTests(TestCase):
         image_id = str(res.json()["data"]["id"])
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"]["uploader"], 1)
+        self.assertEqual(res.json()["data"]["duplication"], False)
 
         res = self.image_upload_with_correct_response_method(url="files/tests/Noodles.gif", title="Noodles", category="food", tags=["food", "noodles"], token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"], {'id': 4})
+        self.assertEqual(res.json()["data"]["duplication"], True)
 
         res = self.image_delete_with_correct_response_method(image_id=image_id, token=token)
         self.assertEqual(res.status_code, 200)
