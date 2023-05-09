@@ -1586,8 +1586,8 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
     imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps)
 
     path = hashed_name + ".gif"
-    resize_path = "resized_" + hashed_name + ".gif"
-    max_size = min(width, height, 150)
+    new_path = "_" + hashed_name + ".gif"
+    max_size = min(width, height, 300)
     ratio = width / height
     new_width = int(max_size * math.sqrt(ratio))
     new_height = int(max_size / math.sqrt(ratio))
@@ -1597,14 +1597,13 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
         for frame in ImageSequence.Iterator(img):
             resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
             frames.append(resized_frame)
-        frames[0].save(resize_path, save_all=True, append_images=frames[1:])
-
+        frames[0].save(new_path, save_all=True, append_images=frames[1:])
 
     gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
-    gif_file = GifFile.objects.create(metadata=gif, file=resize_path)
+    gif_file = GifFile.objects.create(metadata=gif, file=new_path)
 
-    with open(resize_path, 'rb') as temp_gif:
-        gif_file.file.save(resize_path, ContentFile(temp_gif.read()))
+    with open(new_path, 'rb') as temp_gif:
+        gif_file.file.save(new_path, ContentFile(temp_gif.read()))
     gif_file.save()
 
     with Image.open(gif_file.file) as image:
@@ -1616,7 +1615,21 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
     gif.save()
     os.remove(hashed_name + ".mp4")
     os.remove(path)
-    os.remove(resize_path)
+    os.remove(new_path)
+
+    path = gif_file.file.path
+    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+    max_size = min(width, height, 150)
+    ratio = width / height
+    new_width = int(max_size * math.sqrt(ratio))
+    new_height = int(max_size / math.sqrt(ratio))
+    resize_size = (new_width, new_height)
+    with Image.open(path) as img:
+        frames = []
+        for frame in ImageSequence.Iterator(img):
+            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+            frames.append(resized_frame)
+        frames[0].save(resize_path, save_all=True, append_images=frames[1:])
 
     upload_user = UserInfo.objects.filter(id=user).first()
     if os.getenv('DEPLOY') is not None:
