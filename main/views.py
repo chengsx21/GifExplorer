@@ -834,7 +834,6 @@ def user_personalize(req: HttpRequest):
             return unauthorized_error()
         search_engine = config.SEARCH_ENGINE
         tags = helpers.get_user_tags(user)
-        print(tags)
         suggest_gif_list = search_engine.personalization_search(tags)
 
         return_data = {"data": {"gif_ids": suggest_gif_list}}
