@@ -813,7 +813,13 @@ def image_upload(req: HttpRequest):
         gif_fingerprint = imagehash.average_hash(image, hash_size=16)
         fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
         if fingerprint.gif_id != 0:
-            return request_success(data={"data": {"id": fingerprint.gif_id}})
+            return_data = {
+                "data": {
+                    "id": fingerprint.gif_id,
+                    "duplication": True                    
+                }
+            }
+            return request_success(return_data)
 
         gif = GifMetadata.objects.create(title=title, uploader=user.id, category=category, tags=tags)
         gif_file = GifFile.objects.create(metadata=gif, file=req.FILES.get("file"))
@@ -854,13 +860,7 @@ def image_upload(req: HttpRequest):
         return_data = {
             "data": {
                 "id": gif.id,
-                "width": gif.width,
-                "height": gif.height,
-                "duration": gif.duration,
-                "category": gif.category,
-                "tags": gif.tags,
-                "uploader": user.id,
-                "pub_time": gif.pub_time
+                "duplication": False
             }
         }
         return request_success(return_data)
@@ -1018,7 +1018,7 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
     if fingerprint.gif_id != 0:
         return_data = {
             "id": fingerprint.gif_id,
-            "uploaded": True
+            "duplication": True
         }
         return return_data
 
@@ -1063,13 +1063,7 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
 
     return_data = {
         "id": gif.id,
-        "width": gif.width,
-        "height": gif.height,
-        "duration": gif.duration,
-        "category": gif.category,
-        "tags": gif.tags,
-        "uploader": user,
-        "pub_time": gif.pub_time
+        "duplication": False
     }
     return return_data
 
