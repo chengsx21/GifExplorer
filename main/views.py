@@ -1252,7 +1252,10 @@ def image_preview_low_resolution(req: HttpRequest, gif_id: any):
             return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
         path = gif.giffile.file.path
         resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
-        gif_file = open(resize_path, 'rb')
+        try:
+            gif_file = open(resize_path, 'rb')
+        except FileNotFoundError:
+            gif_file = open(path, 'rb')
         file_wrapper = FileWrapper(gif_file)
         response = HttpResponse(file_wrapper, content_type='image/gif', headers={'Access-Control-Allow-Origin': '*'})
         response['Content-Disposition'] = f'inline; filename="{gif.name}"'
