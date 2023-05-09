@@ -19,6 +19,8 @@ urlpatterns = [
     path('user/profile/<user_id>', views.user_profile),
     path('user/follow/<user_id>', views.user_follow),
     path('user/unfollow/<user_id>', views.user_unfollow),
+    path('user/followers/<user_id>', views.user_get_followers),
+    path('user/followings/<user_id>', views.user_get_followings),
     path('user/message', views.user_message),
     path('user/readmessage/<user_id>', views.user_read_message),
     path('user/readhistory', views.user_read_history),

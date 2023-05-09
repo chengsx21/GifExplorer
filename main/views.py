@@ -479,7 +479,7 @@ def user_follow(req: HttpRequest, user_id: any):
         if not isinstance(user_id, str) or not user_id.isdigit():
             return format_error()
 
-        follow_user = UserInfo.objects.filter(id=user_id).first()
+        follow_user = UserInfo.objects.filter(id=int(user_id)).first()
         if not follow_user:
             return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
         if follow_user == user:
@@ -524,7 +524,7 @@ def user_unfollow(req: HttpRequest, user_id: any):
         if not isinstance(user_id, str) or not user_id.isdigit():
             return format_error()
 
-        follow_user = UserInfo.objects.filter(id=user_id).first()
+        follow_user = UserInfo.objects.filter(id=int(user_id)).first()
         if not follow_user:
             return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
         if follow_user == user:
@@ -537,6 +537,64 @@ def user_unfollow(req: HttpRequest, user_id: any):
             return request_success(data={"data": {}})
         else:
             return request_failed(14, "INVALID_FOLLOWS", data={"data": {}})
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_get_followers(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - None
+    response:
+        - List of followers of user
+    '''
+    if req.method == "GET":
+        if not isinstance(user_id, str) or not user_id.isdigit():
+            return format_error()
+        user = UserInfo.objects.filter(id=int(user_id)).first()
+        if not user:
+            return unauthorized_error()
+        try:
+            page = int(req.GET.get("page"))
+        except (TypeError, ValueError) as error:
+            print(error)
+            return request_failed(6, "INVALID_PAGES", data={"data": {"error": str(error)}})
+        user_followers_list, pages = helpers.show_user_followers(user, page - 1)
+        return request_success(data={
+            "data": {
+                "page_count": pages,
+                "page_data": user_followers_list
+            }
+        })
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_get_followings(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - None
+    response:
+        - List of followings of user
+    '''
+    if req.method == "GET":
+        if not isinstance(user_id, str) or not user_id.isdigit():
+            return format_error()
+        user = UserInfo.objects.filter(id=int(user_id)).first()
+        if not user:
+            return unauthorized_error()
+        try:
+            page = int(req.GET.get("page"))
+        except (TypeError, ValueError) as error:
+            print(error)
+            return request_failed(6, "INVALID_PAGES", data={"data": {"error": str(error)}})
+        user_followings_list, pages = helpers.show_user_followings(user, page - 1)
+        return request_success(data={
+            "data": {
+                "page_count": pages,
+                "page_data": user_followings_list
+            }
+        })
     return not_found_error()
 
 @csrf_exempt
