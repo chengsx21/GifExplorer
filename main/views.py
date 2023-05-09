@@ -1608,7 +1608,7 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
         width = frame.shape[1]
         if i % 3 == 0:
             gif_frames.append(frame[:, :, :3])
-    imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps)
+    imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps, loop=0)
 
     path = hashed_name + ".gif"
     new_path = "_" + hashed_name + ".gif"
