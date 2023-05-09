@@ -553,7 +553,7 @@ def user_get_followers(req: HttpRequest, user_id: any):
             return format_error()
         user = UserInfo.objects.filter(id=int(user_id)).first()
         if not user:
-            return unauthorized_error()
+            return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
         try:
             page = int(req.GET.get("page"))
         except (TypeError, ValueError) as error:
@@ -582,7 +582,7 @@ def user_get_followings(req: HttpRequest, user_id: any):
             return format_error()
         user = UserInfo.objects.filter(id=int(user_id)).first()
         if not user:
-            return unauthorized_error()
+            return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
         try:
             page = int(req.GET.get("page"))
         except (TypeError, ValueError) as error:
