@@ -1236,6 +1236,31 @@ def image_detail(req: HttpRequest, gif_id: any):
 
 @csrf_exempt
 @handle_errors
+def image_preview_low_resolution(req: HttpRequest, gif_id: any):
+    '''
+    request:
+        None
+    response:
+        Return a HttpResponse including the gif for preview
+    '''
+    if req.method == "GET":
+        if not isinstance(gif_id, str) or not gif_id.isdecimal():
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+
+        gif = GifMetadata.objects.filter(id=int(gif_id)).first()
+        if not gif:
+            return request_failed(9, "GIFS_NOT_FOUND", data={"data": {}})
+        path = gif.giffile.file.path
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+        gif_file = open(resize_path, 'rb')
+        file_wrapper = FileWrapper(gif_file)
+        response = HttpResponse(file_wrapper, content_type='image/gif', headers={'Access-Control-Allow-Origin': '*'})
+        response['Content-Disposition'] = f'inline; filename="{gif.name}"'
+        return response
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
 def image_preview(req: HttpRequest, gif_id: any):
     '''
     request:
