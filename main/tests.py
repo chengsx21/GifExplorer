@@ -273,6 +273,34 @@ class ViewsTests(TestCase):
         '''
         return self.client.post('/user/unfollow/'+str(user_id), HTTP_AUTHORIZATION=token)
 
+    def user_get_followers_with_wrong_response_method(self, user_id, page):
+        '''
+            Create a POST/user/followers HttpRequest
+        '''
+        url = f'/user/followers/{user_id}?page={page}'
+        return self.client.post(url)
+
+    def user_get_followers_with_correct_response_method(self, user_id, page):
+        '''
+            Create a GET/user/followers HttpRequest
+        '''
+        url = f'/user/followers/{user_id}?page={page}'
+        return self.client.get(url)
+
+    def user_get_followings_with_wrong_response_method(self, user_id, page):
+        '''
+            Create a POST/user/followings HttpRequest
+        '''
+        url = f'/user/followings/{user_id}?page={page}'
+        return self.client.post(url)
+
+    def user_get_followings_with_correct_response_method(self, user_id, page):
+        '''
+            Create a GET/user/followings HttpRequest
+        '''
+        url = f'/user/followings/{user_id}?page={page}'
+        return self.client.get(url)
+
     def user_add_history_with_wrong_response_method(self, gif_id, token):
         '''
             Create a DELETE/user/history HttpRequest
@@ -1241,6 +1269,53 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 13)
         helpers.delete_token_from_white_list(token)
+
+    def test_user_get_followers(self):
+        '''
+            Test user get followers function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_get_followers_with_correct_response_method(2, 1)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["page_count"], 0)
+        res = self.user_get_followings_with_correct_response_method(1, 1)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(res.json()["data"]["page_count"], 0)
+
+        self.user_follow_with_correct_response_method(2, token)
+        res = self.user_get_followers_with_correct_response_method(2, 1)
+        self.assertEqual(res.json()["data"]["page_count"], 1)
+        self.assertEqual(len(res.json()["data"]["page_data"]), 1)
+        res = self.user_get_followings_with_correct_response_method(1, 1)
+        self.assertEqual(res.json()["data"]["page_count"], 1)
+        self.assertEqual(len(res.json()["data"]["page_data"]), 1)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_get_followers_with_wrong_page_index(self):
+        '''
+            Test user get followers with wrong page index
+        '''
+        res = self.user_get_followers_with_correct_response_method(2, 1.5)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 6)
+        res = self.user_get_followings_with_correct_response_method(2, 1.5)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 6)
+
+    def test_user_get_followers_with_wrong_response_method(self):
+        '''
+            Test user get followers with wrong response method
+        '''
+        res = self.user_get_followers_with_wrong_response_method(2, 1)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        res = self.user_get_followings_with_wrong_response_method(2, 1)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
 
     def test_user_message(self):
         '''

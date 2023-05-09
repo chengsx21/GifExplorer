@@ -16,6 +16,8 @@ else:
 
 MAX_GIFS_PER_PAGE = 20
 
+MAX_USERS_PER_PAGE = 10
+
 SEARCH_ENGINE = ElasticSearchEngine()
 
 SECRET_KEY = "Welcome to the god damned SE world!"

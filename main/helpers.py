@@ -12,7 +12,7 @@ from PIL import Image
 import jwt
 from django.utils.crypto import get_random_string
 from utils.utils_request import internal_error
-from .config import MAX_GIFS_PER_PAGE, SECRET_KEY, SEARCH_ENGINE
+from .config import MAX_GIFS_PER_PAGE, MAX_USERS_PER_PAGE, SECRET_KEY, SEARCH_ENGINE
 from .models import UserInfo, UserToken, GifMetadata, GifFingerprint
 
 def handle_errors(view_func):
@@ -203,6 +203,80 @@ def show_user_read_history_pages(user: UserInfo, page: int):
                 "visit_time": read_time
             })
     return gif_list, math.ceil(len(read_history_list) / MAX_GIFS_PER_PAGE)
+
+def get_user_followers(user: UserInfo):
+    """
+        get followers list from a user
+    """
+    if not user.followers:
+        user.followers = {}
+    read_followers_list = list(user.followers.items())
+    read_followers_list = sorted(read_followers_list, key=lambda x: x[1], reverse=True)
+    return read_followers_list
+
+def show_user_followers(user: UserInfo, page: int):
+    '''
+        Show user followers pages
+    '''
+    if not user.followers:
+        return [], 0
+    begin = page * MAX_USERS_PER_PAGE
+    end = (page + 1) * MAX_USERS_PER_PAGE
+    followers_list = get_user_followers(user)
+    followers_page = followers_list[begin:end]
+
+    user_followers_list = []
+    for user_id, _ in followers_page:
+        user = UserInfo.objects.filter(id=int(user_id)).first()
+        if user:
+            user_followers_list.append({
+                "id": user.id,
+                "user_name": user.user_name,
+                "signature": user.signature,
+                "mail": user.mail,
+                "avatar": user.avatar,
+                "followers": len(user.followers),
+                "following": len(user.followings),
+                "register_time": user.register_time
+            })
+    return user_followers_list, math.ceil(len(followers_list) / MAX_USERS_PER_PAGE)
+
+def get_user_followings(user: UserInfo):
+    """
+        get followings list from a user
+    """
+    if not user.followings:
+        user.followings = {}
+    read_followings_list = list(user.followings.items())
+    read_followings_list = sorted(read_followings_list, key=lambda x: x[1], reverse=True)
+    return read_followings_list
+
+def show_user_followings(user: UserInfo, page: int):
+    '''
+        Show user followings pages
+    '''
+    if not user.followings:
+        return [], 0
+    begin = page * MAX_USERS_PER_PAGE
+    end = (page + 1) * MAX_USERS_PER_PAGE
+    followings_list = get_user_followings(user)
+    followings_page = followings_list[begin:end]
+
+    user_followings_list = []
+    for user_id, _ in followings_page:
+        user = UserInfo.objects.filter(id=int(user_id)).first()
+        if user:
+            user_followings_list.append({
+                "id": user.id,
+                "user_name": user.user_name,
+                "signature": user.signature,
+                "mail": user.mail,
+                "avatar": user.avatar,
+                "followers": len(user.followers),
+                "following": len(user.followings),
+                "register_time": user.register_time
+            })
+    return user_followings_list, math.ceil(len(followings_list) / MAX_USERS_PER_PAGE)
 
 def image_resize(image, size=(512, 512)):
     '''
