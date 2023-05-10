@@ -2321,15 +2321,24 @@ def image_search(req: HttpRequest):
         # tags 默认为 [] ，表示没有本项限制。
         if "tags" not in body:
             body["tags"] = []
-        # 检查 keyword, filter, category, tags 的类型
+        # 检查 filter的类型
+        try:
+            assert isinstance(body["filter"], list)
+            for each_filter in body["filter"]:
+                assert isinstance(each_filter, dict)
+                assert "range" in each_filter
+        except Exception as error:
+            print(error)
+            return format_error() 
+        # 检查 keyword, category, tags 的类型
         try:
             assert isinstance(body["keyword"], str)
-            assert isinstance(body["filter"], dict)
             assert isinstance(body["category"], str)
             assert isinstance(body["tags"], list)
         except Exception as error:
             print(error)
             return format_error()
+        
         # type 默认为 "perfect"
         if "type" not in body:
             body["type"] = "perfect"
