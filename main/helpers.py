@@ -357,3 +357,30 @@ def generate_token():
         Generate a random token
     '''
     return get_random_string(length=12)
+
+def update_user_tags(user: UserInfo, tags: list):
+    '''
+        Update user tags
+    '''
+    if not user.tags:
+        user.tags = {}
+    for tag in tags:
+        if tag in user.tags:
+            user.tags[tag] += 1
+        else:
+            user.tags[tag] = 1
+    user.save()
+
+def get_user_tags(user: UserInfo):
+    '''
+        Get user tags
+    '''
+    if not user.tags:
+        return {}
+    tags = list(user.tags.items())
+    tags = dict(sorted(tags, key=lambda x: x[1], reverse=True)[:10])
+    max_val = max(tags.values())
+    normalized_tags = {}
+    for key, value in tags.items():
+        normalized_tags[key] = value / max_val
+    return normalized_tags

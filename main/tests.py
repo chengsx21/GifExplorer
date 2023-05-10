@@ -383,6 +383,18 @@ class ViewsTests(TestCase):
         url = f'/user/readhistory?page={page}'
         return self.client.get(url, HTTP_AUTHORIZATION=token)
 
+    def user_personalize_with_wrong_response_method(self, token):
+        '''
+            Create a POST/user/personalize HttpRequest
+        '''
+        return self.client.post('/user/personalize', HTTP_AUTHORIZATION=token)
+
+    def user_personalize_with_correct_response_method(self, token):
+        '''
+            Create a GET/user/personalize HttpRequest
+        '''
+        return self.client.get('/user/personalize', HTTP_AUTHORIZATION=token)
+
     def image_upload_with_correct_response_method(self, url, title, category, tags, token):
         '''
             Create a POST/image/upload HttpRequest
@@ -1489,6 +1501,41 @@ class ViewsTests(TestCase):
         res = self.user_history_with_wrong_response_method(1, token)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_personalize(self):
+        '''
+            Test user personalize function
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        self.image_like_with_correct_response_method(1, token)
+        self.image_like_with_correct_response_method(2, token)
+        res = self.user_personalize_with_correct_response_method(token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_personalize_with_wrong_response_method(self):
+        '''
+            Test user personalize with wrong response method
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        res = self.user_personalize_with_wrong_response_method(token)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_personalize_with_user_not_exists(self):
+        '''
+            Test user personalize with user not exists
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+        helpers.add_token_to_white_list(token)
+        res = self.user_personalize_with_correct_response_method(token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
         helpers.delete_token_from_white_list(token)
 
     def test_image_upload(self):

@@ -789,6 +789,8 @@ def user_read_history(req: HttpRequest):
             user.read_history = {}
         user.read_history[str(gif_id)] = str(datetime.datetime.now())
         user.save()
+        tags = gif.tags
+        helpers.update_user_tags(user, tags)
         return request_success(data={"data": {}})
 
     if req.method == "GET":
@@ -805,6 +807,37 @@ def user_read_history(req: HttpRequest):
                     "page_data": read_history_list
                 }
             })
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_personalize(req: HttpRequest):
+    '''
+    request:
+        - user token is needed
+    response:
+        - recommended gif id list
+    '''
+    if req.method == "GET":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        user_name = token["user_name"]
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return unauthorized_error()
+        search_engine = config.SEARCH_ENGINE
+        tags = helpers.get_user_tags(user)
+        suggest_gif_list = search_engine.personalization_search(tags)
+
+        return_data = {"data": {"gif_ids": suggest_gif_list}}
+        return request_success(return_data)
     return not_found_error()
 
 @csrf_exempt
@@ -1531,6 +1564,8 @@ def image_like(req: HttpRequest, gif_id: any):
             return unauthorized_error()
         if str(gif_id) not in user.favorites:
             user.favorites[str(gif_id)] = str(datetime.datetime.now())
+            tags = gif.tags
+            helpers.update_user_tags(user, tags)
             user.save()
             gif.likes += 1
             gif.save()

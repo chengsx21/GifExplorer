@@ -78,7 +78,7 @@ class ElasticSearchEngine():
         #         }
         #     }
         # }
-        
+
         body = {
             "query": {
                 "bool": {
@@ -122,15 +122,14 @@ class ElasticSearchEngine():
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
-
     def search_partial(self, request):
-
         """
         [partial match]
             This function allows you search gifs with a particular
             title or uploader by proivding partial keywords. Iuput from
             user will be segmented and each segment should be included.
             Support filters.
+
         [params]
             requset: filter info
             {
@@ -145,6 +144,7 @@ class ElasticSearchEngine():
                 "tags": [str1, str2, str3 ...] (default=[])
             }
             all segments are optional
+
         [return value]
             list of gif ids, sorted by correlation scores
         """
@@ -297,6 +297,69 @@ class ElasticSearchEngine():
     #   }
     # return gif satisfying requirements
 
+    def personalization_search(self, tag_fre):
+        """
+        [personlization]
+            This function supports personlization. Given users' browse
+            history, elastic search will return most relavent gif ids.
+
+        [params]
+            tag_fre(dic): tag frequency table, {"animal": "10", "cute": "2"}
+
+        [return val]
+            list of gif id
+        """
+
+        # body example
+        # {
+        #   "query": {
+        #     "bool": {
+        #       "should": [
+        #         {
+        #           "term": {
+        #             "tags": {
+        #             "value": "animal",
+        #             "boost": 2.5
+        #             }
+        #           }
+        #         },
+        #         {
+        #           "term": {
+        #             "tags": {
+        #             "value": "dog",
+        #             "boost": 10
+        #             }
+        #           }
+        #         }
+        #       ]
+        #     }
+        #   }
+        # }
+
+        body = {
+            "query": {
+                "bool": {
+                    "should": [
+                    ]
+                }
+            }
+        }
+
+        for key, val in tag_fre.items():
+            body["query"]["bool"]["should"].append({
+                "term": {
+                    "tags": {
+                        "value": key,
+                        "boost": val
+                    }
+                }
+            })
+
+        response = self.client.search(body=body)
+        # hits_num = response["hits"]["total"]["value"]
+        return [hit["_id"] for hit in response["hits"]["hits"]]
+
+
     # [suggest]
     #   This function supports Auto Completion. We assume that
     #   users confirm input being valid because suggestion &
@@ -344,7 +407,7 @@ class ElasticSearchEngine():
         [post meta data]
             This function is called when uploading or updating gifs
             to guarantee synchronization between Postgre and ES.
-        
+
         [params]
             data(dict): necessary metadata for SEARCH
             e.g.
@@ -365,12 +428,12 @@ class ElasticSearchEngine():
                 "like" : 0,
                 "is_liked" : false,
             }
-            
+
         [return value]
             response of relevant es request
         """
 
-        data["suggestion"] = data["title"]
+        data["suggest"] = data["title"]
         response = self.client.index(
             index="gif",
             id=int(data["id"]),
@@ -380,7 +443,6 @@ class ElasticSearchEngine():
 
 
 def test_perfect_search():
-
     """
     Unit test for perfect_metadata
     """
@@ -404,7 +466,6 @@ def test_perfect_search():
 
 
 def test_post_metadata():
-
     """
     Unit test for post_metadata 
     """
@@ -433,3 +494,60 @@ def test_post_metadata():
     print("response: ", response)
     assert int(response["_id"]) == request1["id"]
 
+def test_suggest_search():
+    """
+    Unit test for suggest search
+    """
+    response = ElasticSearchEngine().suggest_search("f")
+    print("response: ", response)
+    for op in response:
+        assert op[0] == "f" or op[0] == "F"
+
+def test_personlization_search():
+    """
+    Unit test for personlization search
+    """
+    response = ElasticSearchEngine().personalization_search({"dog": 0.9, "animal": 0.1})
+    print("response: ", response)
+
+
+if __name__ == "__main__":
+
+    test_perfect_search()
+    test_post_metadata()
+    test_suggest_search()
+    test_personlization_search()
+
+
+# if __name__ == "__main__":
+#     es = ElasticSearchEngine()
+
+#     # test perfect match
+#     request1 = {
+#         "target": "uploader",
+#         "filter": [],
+#         "category": "",
+#         "tags": [],
+#         "keyword": "spider126"
+#     }
+#     print(es.search_perfect(request1))
+
+    # test pratial match
+    # request2 = {
+    #     "target": "uploader",
+    #     "keyword": "point eight",
+    #     "category": "cat",
+    #     "filter": [
+    #         {"range": {"width": {"gte": 0, "lte": 100}}},
+    #         {"range": {"height": {"gte": 0, "lte": 100}}},
+    #         {"range": {"duration": {"gte": 0, "lte": 100}}}
+    #     ],
+    #     "tags": ["animal", "cat"]
+    # }
+    # print(es.search_partial(request2))
+
+    # # test suggest
+
+    # # test fuzzy match
+    # print(es.search_fuzzy("a large cat", "title"))
+    # print(es.search_fuzzy("point eight", "uploader"))
