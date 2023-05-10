@@ -2359,15 +2359,15 @@ def image_search(req: HttpRequest):
             print(error)
             return request_failed(5, "INVALID_PAGE", data={"data": {}})
 
-        # target和 keyword 必须都非空串（""），或者都为空串，才合法。
-        try:
-            assert (body["target"] != "" and body["keyword"] != "") or (body["target"] == "" and body["keyword"] == "")
-        except Exception as error:
-            print(error)
-            return format_error()
-        
-        # 对于正则表达式搜索的情形，target 必须属于 ["uploader", "title"] （和 keyword 必须非空？） 
-        if body["type"] == "regex":
+        # 非正则表达式搜索的情形：target和 keyword 必须都非空串（""），或者都为空串，才合法。
+        if body["type"] != "regex":
+            try:
+                assert (body["target"] != "" and body["keyword"] != "") or (body["target"] == "" and body["keyword"] == "")
+            except Exception as error:
+                print(error)
+                return format_error()
+        # 正则表达式搜索的情形：target 必须属于 ["uploader", "title"]
+        else:
             try:
                 assert body["target"] in ["uploader", "title"]
             except Exception as error:
@@ -2399,23 +2399,26 @@ def image_search(req: HttpRequest):
             if body["category"]:
                 query &= Q(category=body["category"])
             if body["tags"]:
+                # query &= Q(tags__in=(body["tags"]))
                 for tag in body["tags"]:
-                    query &= Q(tags__contains=tag)
+                    query &= Q(tags__contains=tag)  # sqlite 不支持 contains
 
-            pattern = re.compile(body["keyword"])
+            repred_keyeord = repr(body['keyword'])[1:-1]
             if body["target"] == "uploader":
                 # 如果 keyword 为 "" ，那么没有本项限制。
                 if body["keyword"] == "":
-                    uploaader_id_list = UserInfo.objects.all().values_list('id', flat=True)
+                    uploaader_id_list = list(UserInfo.objects.all().values_list('id', flat=True))
                 else:
-                    uploaader_id_list = UserInfo.objects.filter(user_name__regex=pattern).values_list('id', flat=True)
-                id_list = GifMetadata.objects.filter(Q(uploader__in=uploaader_id_list) & query).values_list('id', flat=True)
+                    uploaader_id_list = list(UserInfo.objects.filter(user_name__regex=repred_keyeord).values_list('id', flat=True))
+                # print(f'uploaader_id_list = {uploaader_id_list}')
+
+                id_list = list(GifMetadata.objects.filter(Q(uploader__in=uploaader_id_list) & query).values_list('id', flat=True))
             elif body["target"] == "title":
                 # 如果 keyword 为 "" ，那么没有本项限制。
                 if body["keyword"] == "":
-                    id_list = GifMetadata.objects.all().values_list('id', flat=True)
+                    id_list = list(GifMetadata.objects.all().values_list('id', flat=True))
                 else:
-                    id_list = GifMetadata.objects.filter(Q(title__regex=pattern) & query).values_list('id', flat=True)
+                    id_list = list(GifMetadata.objects.filter(Q(title__regex=repred_keyeord) & query).values_list('id', flat=True))
             
         # 通过关键词搜索
         else:
@@ -2429,9 +2432,8 @@ def image_search(req: HttpRequest):
             else:
                 return format_error()
         
-        print(f"id_list = {id_list}")
+        # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
-
 
         return request_success(data=
             {
