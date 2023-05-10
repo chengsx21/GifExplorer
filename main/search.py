@@ -433,7 +433,7 @@ class ElasticSearchEngine():
             response of relevant es request
         """
 
-        data["suggestion"] = data["title"]
+        data["suggest"] = data["title"]
         response = self.client.index(
             index="gif",
             id=int(data["id"]),
