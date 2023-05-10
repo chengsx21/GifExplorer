@@ -111,7 +111,7 @@ class ElasticSearchEngine():
         assert must_array
         body["query"]["bool"]["must"] = must_array
         # print(body)
-        response = self.client.search(body=body, size=1000)
+        response = self.client.search(body=body, size=10000)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
     
@@ -136,7 +136,6 @@ class ElasticSearchEngine():
     #   target must be "title" or "uploader"
     # [return value]
     #   list of gif ids, sorted by correlation scores 
-
     def search_partial(self, request):
 
         """ query example
@@ -220,7 +219,7 @@ class ElasticSearchEngine():
         assert must_array
         body["query"]["bool"]["must"] = must_array
         # print(body)
-        response = self.client.search(body=body, size=1000)
+        response = self.client.search(body=body, size=10000)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
@@ -245,9 +244,6 @@ class ElasticSearchEngine():
     #   keyword(str): segmentation for keyword and
     #   segmented words must be adjacent
     # return gif containing keyword as a phrase
-
-
-
     # def search_fuzzy(self, keyword, target):
 
     #     if target == "title":
