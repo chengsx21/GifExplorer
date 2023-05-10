@@ -2321,6 +2321,15 @@ def image_search(req: HttpRequest):
         # tags 默认为 [] ，表示没有本项限制。
         if "tags" not in body:
             body["tags"] = []
+        # 检查 keyword, filter, category, tags 的类型
+        try:
+            assert isinstance(body["keyword"], str)
+            assert isinstance(body["filter"], dict)
+            assert isinstance(body["category"], str)
+            assert isinstance(body["tags"], list)
+        except Exception as error:
+            print(error)
+            return format_error()
         # type 默认为 "perfect"
         if "type" not in body:
             body["type"] = "perfect"
@@ -2342,8 +2351,12 @@ def image_search(req: HttpRequest):
             return request_failed(5, "INVALID_PAGE", data={"data": {}})
 
         # target和 keyword 必须都非空串（""），或者都为空串，才合法。
-        if not ((body["target"] == "" and body["keyword"] == "") or (body["target"] != "" and body["keyword"] != "")):
+        try:
+            assert (body["target"] != "" and body["keyword"] != "") or (body["target"] == "" and body["keyword"] == "")
+        except Exception as error:
+            print(error)
             return format_error()
+        
         # 对于正则表达式搜索的情形，target 必须属于 ["uploader", "title"] （和 keyword 必须非空？） 
         if body["type"] == "regex":
             try:
