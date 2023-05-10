@@ -12,6 +12,7 @@ import datetime
 import imghdr
 import imageio
 import imagehash
+import re
 from jwt import DecodeError
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 from celery import shared_task
@@ -2355,12 +2356,30 @@ def image_search(req: HttpRequest):
         # tags 默认为 [] ，表示没有本项限制。
         if "tags" not in body:
             body["tags"] = []
+        # 检查 filter的类型
+        try:
+            assert isinstance(body["filter"], list)
+            for each_filter in body["filter"]:
+                assert isinstance(each_filter, dict)
+                assert "range" in each_filter
+        except Exception as error:
+            print(error)
+            return format_error() 
+        # 检查 keyword, category, tags 的类型
+        try:
+            assert isinstance(body["keyword"], str)
+            assert isinstance(body["category"], str)
+            assert isinstance(body["tags"], list)
+        except Exception as error:
+            print(error)
+            return format_error()
+        
         # type 默认为 "perfect"
         if "type" not in body:
             body["type"] = "perfect"
-        # type 必须为 "perfect", "partial", "fuzzy" 三者之一
+        # type 必须为 "perfect", "partial", "fuzzy", "regex" 之一
         try:
-            assert body["type"] in ["perfect", "partial", "fuzzy"]
+            assert body["type"] in ["perfect", "partial", "fuzzy", "regex"]
         except Exception as error:
             print(error)
             return format_error()
@@ -2375,20 +2394,80 @@ def image_search(req: HttpRequest):
             print(error)
             return request_failed(5, "INVALID_PAGE", data={"data": {}})
 
-        # target和 keyword 必须都非空串（""），或者都为空串，才合法。
-        if not ((body["target"] == "" and body["keyword"] == "") or (body["target"] != "" and body["keyword"] != "")):
-            return format_error()
-
-        # 连接搜索模块
-        search_engine = config.SEARCH_ENGINE
-
-        if body["type"] == "perfect":
-            id_list = search_engine.search_perfect(request=body)
-        elif body["type"] == "partial":
-            id_list = search_engine.search_partial(request=body)
+        # 非正则表达式搜索的情形：target和 keyword 必须都非空串（""），或者都为空串，才合法。
+        if body["type"] != "regex":
+            try:
+                assert (body["target"] != "" and body["keyword"] != "") or (body["target"] == "" and body["keyword"] == "")
+            except Exception as error:
+                print(error)
+                return format_error()
+        # 正则表达式搜索的情形：target 必须属于 ["uploader", "title"]
         else:
-            return format_error()
+            try:
+                assert body["target"] in ["uploader", "title"]
+            except Exception as error:
+                print(error)
+                return format_error()
+            
+        # 通过正则表达式搜索
+        if body["type"] == "regex":
+            query = Q()
+            if body["filter"]:
+                ranges = [filter["range"] for filter in body["filter"]]
+                """
+                ranges = [
+                    {"width": {"gte": 0, "lte": 100}},
+                    {"height": {"gte": 0, "lte": 100}},
+                    {"duration": {"gte": 0, "lte": 100}}
+                ]
+                """
+                for each_range in ranges:
+                    if "width" in each_range:
+                        query &= Q(width__gte=each_range["width"]["gte"])
+                        query &= Q(width__lte=each_range["width"]["lte"])
+                    elif "height" in each_range:
+                        query &= Q(height__gte=each_range["height"]["gte"])
+                        query &= Q(height__lte=each_range["height"]["lte"])
+                    elif "duration" in each_range:
+                        query &= Q(duration__gte=each_range["duration"]["gte"])
+                        query &= Q(duration__lte=each_range["duration"]["lte"])
+            if body["category"]:
+                query &= Q(category=body["category"])
+            if body["tags"]:
+                # query &= Q(tags__in=(body["tags"]))
+                for tag in body["tags"]:
+                    query &= Q(tags__contains=tag)  # sqlite 不支持 contains
 
+            repred_keyeord = repr(body['keyword'])[1:-1]
+            if body["target"] == "uploader":
+                # 如果 keyword 为 "" ，那么没有本项限制。
+                if body["keyword"] == "":
+                    uploaader_id_list = list(UserInfo.objects.all().values_list('id', flat=True))
+                else:
+                    uploaader_id_list = list(UserInfo.objects.filter(user_name__regex=repred_keyeord).values_list('id', flat=True))
+                # print(f'uploaader_id_list = {uploaader_id_list}')
+
+                id_list = list(GifMetadata.objects.filter(Q(uploader__in=uploaader_id_list) & query).values_list('id', flat=True))
+            elif body["target"] == "title":
+                # 如果 keyword 为 "" ，那么没有本项限制。
+                if body["keyword"] == "":
+                    id_list = list(GifMetadata.objects.all().values_list('id', flat=True))
+                else:
+                    id_list = list(GifMetadata.objects.filter(Q(title__regex=repred_keyeord) & query).values_list('id', flat=True))
+            
+        # 通过关键词搜索
+        else:
+            # 连接搜索模块
+            search_engine = config.SEARCH_ENGINE
+
+            if body["type"] == "perfect":
+                id_list = search_engine.search_perfect(request=body)
+            elif body["type"] == "partial":
+                id_list = search_engine.search_partial(request=body)
+            else:
+                return format_error()
+        
+        # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
 
         return request_success(data=
