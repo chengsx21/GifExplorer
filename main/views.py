@@ -8,6 +8,7 @@ import math
 import json
 from wsgiref.util import FileWrapper
 import io
+import time
 import datetime
 import imghdr
 import re
@@ -820,6 +821,51 @@ def user_read_history(req: HttpRequest):
                     "page_data": read_history_list
                 }
             })
+    return not_found_error()
+
+
+@csrf_exempt
+@handle_errors
+def user_search_history(req: HttpRequest):
+    '''
+    request:
+        - user token is needed
+    response:
+        - search_history
+    '''
+    try:
+        encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+        token = helpers.decode_token(encoded_token)
+        if not helpers.is_token_valid(token=encoded_token):
+            return unauthorized_error()
+    except DecodeError as error:
+        print(error)
+        return unauthorized_error(str(error))
+
+    user_name = token["user_name"]
+    user = UserInfo.objects.filter(user_name=user_name).first()
+    if not user:
+        return unauthorized_error()
+
+    if req.method == "GET":
+        search_history = helpers.get_user_search_history(user)
+        all_search_history = []
+        for search_content, search_time in search_history:
+            all_search_history.append({
+                "keyword": search_content,
+                "search_time": search_time
+            })
+        return_data = {
+            "data": {
+                "search_data": all_search_history
+            }
+        }
+        return request_success(return_data)
+
+    if req.method == "DELETE":
+        search_content = req.GET.get("history")
+        helpers.delete_user_search_history(user, search_content)
+        return request_success(data={"data": {}})
     return not_found_error()
 
 @csrf_exempt
@@ -2341,6 +2387,7 @@ def image_search(req: HttpRequest):
     '''
 
     if req.method == "POST":
+        start_time = time.time()
         try:
             body = json.loads(req.body.decode("utf-8"))
         except (TypeError, KeyError) as error:
@@ -2472,6 +2519,16 @@ def image_search(req: HttpRequest):
             # 连接搜索模块
             search_engine = config.SEARCH_ENGINE
 
+            if req.META.get("HTTP_AUTHORIZATION"):
+                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                token = helpers.decode_token(encoded_token)
+                if not helpers.is_token_valid(token=encoded_token):
+                    return unauthorized_error()
+                user = UserInfo.objects.filter(id=token["id"]).first()
+                content = body["keyword"]
+                if content:
+                    helpers.post_user_search_history(user=user, search_content=content)
+
             if body["type"] == "perfect":
                 id_list = search_engine.search_perfect(request=body)
             elif body["type"] == "partial":
@@ -2482,11 +2539,13 @@ def image_search(req: HttpRequest):
         # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
 
+        finish_time = time.time()
         return request_success(data=
             {
                 "data": {
                     "page_count": pages,
-                    "page_data": gif_list
+                    "page_data": gif_list,
+                    "time": finish_time - start_time
                 }
             })
     return not_found_error()

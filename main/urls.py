@@ -24,6 +24,7 @@ urlpatterns = [
     path('user/message', views.user_message),
     path('user/readmessage/<user_id>', views.user_read_message),
     path('user/readhistory', views.user_read_history),
+    path('user/searchhistory', views.user_search_history),
     path('user/personalize', views.user_personalize),
     path('image/upload', views.image_upload),
     path('image/update/<gif_id>', views.image_update_metadata),
