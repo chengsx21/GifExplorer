@@ -10,9 +10,9 @@ from wsgiref.util import FileWrapper
 import io
 import datetime
 import imghdr
+import re
 import imageio
 import imagehash
-import re
 from jwt import DecodeError
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 from celery import shared_task
@@ -438,6 +438,17 @@ def user_profile(req: HttpRequest, user_id: any):
                 "pub_time": gif.pub_time,
                 "like": gif.likes,
             })
+
+        is_followed = False
+        if req.META.get("HTTP_AUTHORIZATION"):
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+            current_user = UserInfo.objects.filter(id=token["id"]).first()
+            if str(user.id) in current_user.followings:
+                is_followed = True
+
         return_data = {
             "data": {
                 "id": user.id,
@@ -448,7 +459,8 @@ def user_profile(req: HttpRequest, user_id: any):
                 "followers": len(user.followers),
                 "following": len(user.followings),
                 "register_time": user.register_time,
-                "data": gifs
+                "data": gifs,
+                "is_followed": is_followed
             }
         }
         return request_success(return_data)
@@ -2364,7 +2376,7 @@ def image_search(req: HttpRequest):
                 assert "range" in each_filter
         except Exception as error:
             print(error)
-            return format_error() 
+            return format_error()
         # 检查 keyword, category, tags 的类型
         try:
             assert isinstance(body["keyword"], str)
@@ -2373,7 +2385,7 @@ def image_search(req: HttpRequest):
         except Exception as error:
             print(error)
             return format_error()
-        
+
         # type 默认为 "perfect"
         if "type" not in body:
             body["type"] = "perfect"
@@ -2408,7 +2420,7 @@ def image_search(req: HttpRequest):
             except Exception as error:
                 print(error)
                 return format_error()
-            
+
         # 通过正则表达式搜索
         if body["type"] == "regex":
             query = Q()
@@ -2454,7 +2466,7 @@ def image_search(req: HttpRequest):
                     id_list = list(GifMetadata.objects.all().values_list('id', flat=True))
                 else:
                     id_list = list(GifMetadata.objects.filter(Q(title__regex=repred_keyeord) & query).values_list('id', flat=True))
-            
+
         # 通过关键词搜索
         else:
             # 连接搜索模块
@@ -2466,7 +2478,7 @@ def image_search(req: HttpRequest):
                 id_list = search_engine.search_partial(request=body)
             else:
                 return format_error()
-        
+
         # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
 
