@@ -1,76 +1,59 @@
-from elasticsearch import Elasticsearch
-
-""" ElasticEngine
-
-- search function
-    |- perfect search
-    |- partial search
-- suggest function
-    |-
-
 """
+Filename: main.py
+Author: lutianyu
+Contact: luty21@mails.tsinghua.edu.cn
+"""
+import json
+from elasticsearch import Elasticsearch
 
 
 class ElasticSearchEngine():
-    # use Kibana to test
-    # see http://localhost:5601/app/dev_tools#/console
+
+    """ElasticEngine
+    - search function
+        |- perfect search
+        |- partial search
+    - suggest function
+        |- completion
+    - synchronization function
+        |- post metadata
+    """
+
+    # Use Kibana to test
+    # Local test: see http://localhost:5601/app/dev_tools#/console
+    # Nasuyun test: see https://kibana.nasuyun.com/app/kibana#/dev_tools/console
 
     # bind to elastic search server
     def __init__(self):
-        # self.client = Elasticsearch([{
-        #     "host": "127.0.0.1", 
-        #     "port": 9200,
-        # }])
+        # self.client = Elasticsearch([{"host": "127.0.0.1", "port": 9200}])
         self.client = Elasticsearch(
             ['https://router.nasuyun.com:9200'],
             http_auth=('gif_search', '8BOeYq2P3t2JPWn6G6jfVB5top'),
-            # scheme="https",
+            scheme="https",
         )
 
-    # [perfect match]
-    #   This function is used to search gifs with a particular title
-    #   as well as uploader and there's no segmentation for keyword.
-    #   Support filters. 
-    # [params]
-    #   requset: filter info
-    #   {
-    #       "target": str,
-    #       "keyword": str,
-    #       "category": str, 
-    #       "filter": [
-    #           {"range": {"width": {"gte": min, "lte": max}}},
-    #           {"range": {"height": {"gte": min, "lte": max}}},
-    #           {"range": {"duration": {"gte": min, "lte": max}}}
-    #       ],
-    #       "tags": [str1, str2, str3 ...]
-    #   }
-    #   target must be "title" or "uploader"
-    # [return value]
-    #   list of gif ids, sorted by correlation scores 
     def search_perfect(self, request):
-
-        """ query example
-        {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"title.keyword": "still dog"}}, # must
-                        {"term": {"category.keyword": "animal"}} # optional
-                        {"terms_set": { # optional
-                            "tags": {
-                                "terms": ["animal", "cat"],
-                                "minimum_should_match_script": {
-                                    "source": "2"
-                                }
-                            }
-                        }}
-                        {"range": {"width": {"gte": 1, "lte": 2}}}, # optional
-                        {"range": {"height": {"gte": 1, "lte": 2}}}, # optional
-                        {"range": {"duration": {"gte": 1, "lte": 2}}} # optional
-                    ]
-                }
+        """
+        [perfect match]
+            This function is used to search gifs with a particular title
+            as well as uploader and there's no segmentation for keyword.
+            Support filters.
+        [params]
+            requset: dic of filter info
+            {
+                "target": str, "title" or "uploader" (default="")
+                "keyword": str, (default="")
+                "category": str, (default="")
+                "filter": [
+                    {"range": {"width": {"gte": min, "lte": max}}},
+                    {"range": {"height": {"gte": min, "lte": max}}},
+                    {"range": {"duration": {"gte": min, "lte": max}}}
+                ], (default=[])
+                "tags": [str1, str2, str3 ...] (default=[])
             }
-        }
+            all segments are optional!
+        [return value]
+            list of gif ids, sorted by correlation scores
         """
 
         # query example
@@ -108,15 +91,18 @@ class ElasticSearchEngine():
         must_array = []
         target = request["target"]
         if target == "uploader":
-            must_array.append({"term": {"uploader.keyword": request["keyword"]}})
-        else:
+            must_array.append(
+                {"term": {"uploader.keyword": request["keyword"]}})
+        elif target == "title":
             must_array.append({"term": {"title.keyword": request["keyword"]}})
-        
+
         # filter width / height / duration
         must_array += request["filter"]
 
         # filter category
-        must_array.append({"term": {"category.keyword": request["category"]}})
+        if request["category"] != "":
+            must_array.append(
+                {"term": {"category.keyword": request["category"]}})
 
         # filter tags
         # tags provided by user should be the subset of real gif tags
@@ -131,9 +117,7 @@ class ElasticSearchEngine():
                 }
             }})
 
-        assert must_array
         body["query"]["bool"]["must"] = must_array
-        # print(body)
         response = self.client.search(body=body, size=10000)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
@@ -165,6 +149,34 @@ class ElasticSearchEngine():
             list of gif ids, sorted by correlation scores
         """
 
+        # query example
+        # {
+        #     "query": {
+        #         "bool": {
+        #             "must": [
+        #                 {"match": {
+        #                     "title": {
+        #                         "query": "still dog",
+        #                         "operator": "and"
+        #                     }
+        #                 }},
+        #                 {"term": {"category.keyword": "animal"}} # optional
+        #                 {"terms_set": {
+        #                     "tags": {
+        #                         "terms": ["animal", "cat"],
+        #                         "minimum_should_match_script": {
+        #                             "source": "2"
+        #                         }
+        #                     }
+        #                 }}
+        #                 {"range": {"width": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"height": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
+        #             ]
+        #         }
+        #     }
+        # }
+
         body = {
             "query": {
                 "bool": {
@@ -181,25 +193,27 @@ class ElasticSearchEngine():
                 "match": {
                     "uploader": {
                         "query": request["keyword"],
-                        "operator": "or"
+                        "operator": "and"
                     }
                 }
             })
-        else:
+        elif target == "title":
             must_array.append({
                 "match": {
                     "title": {
                         "query": request["keyword"],
-                        "operator": "or"
+                        "operator": "and"
                     }
                 }
             })
-        
+
         # filter width / height / duration
         must_array += request["filter"]
 
         # filter category
-        must_array.append({"term": {"category.keyword": request["category"]}})
+        if request["category"] != "":
+            must_array.append(
+                {"term": {"category.keyword": request["category"]}})
 
         # filter tags
         # tags provided by user should be the subset of real gif tags
@@ -214,9 +228,7 @@ class ElasticSearchEngine():
                 }
             }})
 
-        assert must_array
         body["query"]["bool"]["must"] = must_array
-        # print(body)
         response = self.client.search(body=body, size=10000)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
@@ -242,8 +254,8 @@ class ElasticSearchEngine():
     #   keyword(str): segmentation for keyword and
     #   segmented words must be adjacent
     # return gif containing keyword as a phrase
-    # def search_fuzzy(self, keyword, target):
 
+    # def search_fuzzy(self, keyword, target):
     #     if target == "title":
     #         body = {
     #             "query": {
@@ -274,16 +286,11 @@ class ElasticSearchEngine():
     #     # hits_num = response["hits"]["total"]["value"]
     #     return [hit["_id"] for hit in response["hits"]["hits"]]
 
-    # [filter]
-    # params
-    #   filter(dic): range of width / height / duration
-    #   e.g. {
-    #       ""
-    #       "width": {"min": 1, "max": 10},
-    #       "height": {"min": 1, "max": 10},
-    #       "duration": {"min": 1, "max": 114514}
-    #   }
-    # return gif satisfying requirements
+
+    def hot_search(self):
+        """
+        """
+        pass
 
     def personalization_search(self, tag_fre):
         """
@@ -343,35 +350,38 @@ class ElasticSearchEngine():
                 }
             })
 
-        response = self.client.search(body=body)
+        response = self.client.search(body=body, size=10000)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
 
-    
-    # [suggest]
-    #   This function supports Auto Completion. We assume that
-    #   users confirm input being valid because suggestion &
-    #   corrector have been provided before. In other word, 
-    #   user_input must be the prefix of suggestions.
-    # [params]
-    #   user_input(str): type in
-    # [return value]
     def suggest_search(self, user_input):
+        """
+        [suggest]
+            This function supports Auto Completion. We assume that
+            users confirm input being valid because suggestion &
+            corrector have been provided before. In other word,
+            user_input must be the prefix of suggestions.
 
+        [params]
+            user_input(str): type in
+
+        [return value]
+            list of suggestion string
         """
-        {
-            "suggest": {
-                "title_suggest": {
-                    "prefix": str,
-                    "completion": {
-                        "filed": "title"
-                    }
-                }
-            }
-        }
-        """
-        
+
+        # {
+        #     "suggest": {
+        #         "title_suggest": {
+        #             "prefix": str,
+        #             "completion": {
+        #                 "filed": "title",
+        #                 "skip_duplicates": true
+        #             }
+        #         }
+        #     }
+        # }
+
         body = {
             "suggest": {
                 "title_suggest": {
@@ -384,9 +394,9 @@ class ElasticSearchEngine():
             }
         }
 
-        response = self.client.search(body=body)
+        response = self.client.search(body=body, size=10000)
         return [
-            op["_source"]["suggest"] 
+            op["_source"]["suggest"]
             for op in response["suggest"]["title_suggest"][0]["options"]
         ]
 
@@ -421,7 +431,7 @@ class ElasticSearchEngine():
             response of relevant es request
         """
 
-        data["suggest"] = data["title"]
+        data["suggestion"] = data["title"]
         response = self.client.index(
             index="gif",
             id=int(data["id"]),
@@ -470,16 +480,18 @@ def test_post_metadata():
             "people",
             "gathering"
         ],
-        "tags": ["animal", "cat"]
+        "duration": 5.2,
+        "pub_time": "2023-04-23T15:32:59.514Z",
+        "like": 0,
+        "is_liked": False,
     }
-    print(es.search_partial(request))
 
-    # test suggest
-    print(es.suggest_search("dog"))
+    response = ElasticSearchEngine().post_metadata(request1)
 
-    # # test fuzzy match
-    # print(es.search_fuzzy("a large cat", "title"))
-    # print(es.search_fuzzy("point eight", "uploader"))
+    # unit test
+    print("response: ", response)
+    assert int(response["_id"]) == request1["id"]
+
 def test_suggest_search():
     """
     Unit test for suggest search
