@@ -377,7 +377,8 @@ class ElasticSearchEngine():
                 "title_suggest": {
                     "prefix": user_input,
                     "completion": {
-                        "field": "suggest"
+                        "field": "suggest",
+                        "skip_duplicates": True
                     }
                 }
             }
