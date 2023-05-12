@@ -5,6 +5,7 @@ import hashlib
 import io
 import re
 import base64
+import datetime
 import math
 from functools import wraps
 import magic
@@ -12,7 +13,7 @@ from PIL import Image
 import jwt
 from django.utils.crypto import get_random_string
 from utils.utils_request import internal_error
-from .config import MAX_GIFS_PER_PAGE, MAX_USERS_PER_PAGE, SECRET_KEY, SEARCH_ENGINE
+from .config import MAX_GIFS_PER_PAGE, MAX_USERS_PER_PAGE, MAX_SEARCH_HISTORY, SECRET_KEY, SEARCH_ENGINE
 from .models import UserInfo, UserToken, GifMetadata, GifFingerprint
 
 def handle_errors(view_func):
@@ -384,3 +385,37 @@ def get_user_tags(user: UserInfo):
     for key, value in tags.items():
         normalized_tags[key] = value / max_val
     return normalized_tags
+
+def post_user_search_history(user: UserInfo, search_content: str):
+    '''
+        Post user search history
+    '''
+    if not user.search_history:
+        user.search_history = {}
+    user.search_history[search_content] = str(datetime.datetime.now())
+    while len(user.search_history) > MAX_SEARCH_HISTORY:
+        history = list(user.search_history.items())
+        sorted_history = sorted(history, key=lambda x: x[1], reverse=True)
+        removed_content = sorted_history[-1][0]
+        user.search_history.pop(removed_content)
+    user.save()
+
+def get_user_search_history(user: UserInfo):
+    '''
+        Get user search history
+    '''
+    if not user.search_history:
+        user.search_history = {}
+    read_search_list = list(user.search_history.items())
+    read_search_list = sorted(read_search_list, key=lambda x: x[1], reverse=True)
+    return read_search_list
+
+def delete_user_search_history(user: UserInfo, search_content: str):
+    '''
+        Delete user search history
+    '''
+    if not user.search_history:
+        user.search_history = {}
+    if search_content in user.search_history:
+        user.search_history.pop(search_content)
+    user.save()
