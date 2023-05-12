@@ -894,8 +894,28 @@ def user_personalize(req: HttpRequest):
         search_engine = config.SEARCH_ENGINE
         tags = helpers.get_user_tags(user)
         suggest_gif_list = search_engine.personalization_search(tags)
+        gifs = []
+        for gif_id in suggest_gif_list:
+            gif = GifMetadata.objects.filter(id=gif_id).first()
+            if gif:
+                gif_user = UserInfo.objects.filter(id=gif.uploader).first()
+                gifs.append({
+                    "id": gif.id,
+                    "title": gif.title,
+                    "width": gif.width,
+                    "height": gif.height,
+                    "category": gif.category,
+                    "tags": gif.tags,
+                    "duration": gif.duration,
+                    "pub_time": gif.pub_time,
+                    "like": gif.likes,
+                    "uploader_id": gif.uploader,
+                    "uploader": gif_user.user_name,
+                })
+            if len(gifs) >= 10:
+                break
 
-        return_data = {"data": {"gif_ids": suggest_gif_list}}
+        return_data = {"data": gifs}
         return request_success(return_data)
     return not_found_error()
 
@@ -2590,3 +2610,17 @@ def search_suggest(req: HttpRequest):
                     "suggestions": suggestion_list
                 }
             })
+
+@csrf_exempt
+@handle_errors
+def image_gifs_count(req: HttpRequest):
+    '''
+    request:
+        None
+    response:
+        number of gifs
+    '''
+    if req.method == "GET":
+        count = GifMetadata.objects.count()
+        return request_success(data={"data": count})
+    return not_found_error()

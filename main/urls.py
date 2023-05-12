@@ -50,4 +50,5 @@ urlpatterns = [
     path('image/allgifs', views.image_allgifs),
     path('image/search', views.image_search),
     path('image/search/suggest', views.search_suggest),
+    path('image/gifscount', views.image_gifs_count),
 ]
