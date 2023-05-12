@@ -2478,7 +2478,8 @@ def image_search(req: HttpRequest):
                 id_list = search_engine.search_partial(request=body)
             else:
                 return format_error()
-
+        
+        id_list = [id for id in id_list if GifMetadata.objects.filter(id=id).first()]
         # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
 
