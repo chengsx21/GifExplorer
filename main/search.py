@@ -118,7 +118,7 @@ class ElasticSearchEngine():
             }})
 
         body["query"]["bool"]["must"] = must_array
-        response = self.client.search(body=body, size=10000)
+        response = self.client.search(body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
@@ -229,7 +229,7 @@ class ElasticSearchEngine():
             }})
 
         body["query"]["bool"]["must"] = must_array
-        response = self.client.search(body=body, size=10000)
+        response = self.client.search(body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
