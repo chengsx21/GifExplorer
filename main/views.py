@@ -2517,13 +2517,13 @@ def image_search(req: HttpRequest):
                 for tag in body["tags"]:
                     query &= Q(tags__contains=tag)  # sqlite 不支持 contains
 
-            repred_keyeord = repr(body['keyword'])[1:-1]
+            repred_keyword = repr(body['keyword'])[1:-1]
             if body["target"] == "uploader":
                 # 如果 keyword 为 "" ，那么没有本项限制。
                 if body["keyword"] == "":
                     uploaader_id_list = list(UserInfo.objects.all().values_list('id', flat=True))
                 else:
-                    uploaader_id_list = list(UserInfo.objects.filter(user_name__regex=repred_keyeord).values_list('id', flat=True))
+                    uploaader_id_list = list(UserInfo.objects.filter(user_name__regex=repred_keyword).values_list('id', flat=True))
                 # print(f'uploaader_id_list = {uploaader_id_list}')
 
                 id_list = list(GifMetadata.objects.filter(Q(uploader__in=uploaader_id_list) & query).values_list('id', flat=True))
@@ -2532,7 +2532,7 @@ def image_search(req: HttpRequest):
                 if body["keyword"] == "":
                     id_list = list(GifMetadata.objects.all().values_list('id', flat=True))
                 else:
-                    id_list = list(GifMetadata.objects.filter(Q(title__regex=repred_keyeord) & query).values_list('id', flat=True))
+                    id_list = list(GifMetadata.objects.filter(Q(title__regex=repred_keyword) & query).values_list('id', flat=True))
 
         # 通过关键词搜索
         else:
