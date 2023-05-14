@@ -2552,6 +2552,7 @@ def image_search(req: HttpRequest):
                 # query &= Q(tags__in=(body["tags"]))
                 for tag in body["tags"]:
                     query &= Q(tags__contains=tag)  # sqlite 不支持 contains
+                # pass
 
             repred_keyword = repr(body['keyword'])[1:-1]
             if body["target"] == "uploader":

@@ -2603,7 +2603,7 @@ class ViewsTests(TestCase):
                     "type": type,
                     "page": 1
                 }
-                res = self.image_search_with_correct_response_method(req)                
+                res = self.image_search_with_correct_response_method(req)    
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 3)
@@ -2626,7 +2626,7 @@ class ViewsTests(TestCase):
                     "type": type,
                     "page": 1
                 }
-                res = self.image_search_with_correct_response_method(req)                
+                res = self.image_search_with_correct_response_method(req)         
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 3)
@@ -2649,7 +2649,7 @@ class ViewsTests(TestCase):
                     "type": type,
                     "page": 1
                 }
-                res = self.image_search_with_correct_response_method(req)                
+                res = self.image_search_with_correct_response_method(req)          
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 3)
@@ -2763,3 +2763,94 @@ class ViewsTests(TestCase):
                 res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_missing_type(self):
+        '''
+            Test image search with missing type
+        '''
+        for target in ["title", "uploader"]:
+            req = {
+                "target": target,
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "page": 1
+            }
+            res = self.image_search_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(len(res.json()["data"]), 3)
+
+    def test_image_search_with_wrong_type(self):
+        '''
+            Test image search with wrong type
+        '''
+        for target in ["title", "uploader"]:
+            req = {
+                "target": target,
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "type": "wrong type",
+                "page": 1
+            }
+            res = self.image_search_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_missing_page(self):
+        '''
+            Test image search with missing page
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type
+                }
+                res = self.image_search_with_correct_response_method(req)
+                self.assertEqual(res.status_code, 200)
+                self.assertEqual(res.json()["code"], 0)
+                self.assertEqual(len(res.json()["data"]), 3)
+
+    def test_image_search_with_wrong_page(self):
+        '''
+            Test image search with wrong page
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                for wrong_page in ["1", 1.2, 0, -100]:
+                    req = {
+                        "target": target,
+                        "keyword": "food",
+                        "filter": [ 
+                            {"range": {"width": {"gte": 0, "lte": 1000}}},
+                            {"range": {"height": {"gte": 0, "lte": 1000}}},
+                            {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                        ],
+                        "category": "food",
+                        "tags": ["food"],
+                        "type": type,
+                        "page": wrong_page
+                    }
+                    res = self.image_search_with_correct_response_method(req)
+                    self.assertEqual(res.status_code, 400)
+                    self.assertEqual(res.json()["code"], 5)
