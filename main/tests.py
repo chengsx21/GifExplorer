@@ -765,6 +765,12 @@ class ViewsTests(TestCase):
         '''
         return self.client.get('/image/search', data=req, content_type="application/json")
     
+    def image_search_with_correct_response_method(self, req):
+        '''
+            Create a POST/image/search HttpRequest
+        '''
+        return self.client.post('/image/search', data=req, content_type="application/json")
+ 
 
     def test_user_login(self):
         '''
@@ -2461,6 +2467,27 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
 
+    def test_image_search(self):
+        '''
+            Test image search
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            req = {
+                "target": "title",
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "type": type,
+                "page": 1
+            }
+            res = self.image_search_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(len(res.json()["data"]), 3)
+
     def test_image_search_with_wrong_method(self):
         '''
             Test image search with wrong method
@@ -2482,8 +2509,10 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
 
-    def test_image_search_with_wrong_method(self):
-        '''
-            Test image search with 
-        '''
-        pass
+    # def test_image_search_with_invalid_json(self):
+    #     '''
+    #         Test image search with invalid json
+    #     '''
+    #     res = self.image_search_with_correct_response_method("invalid json")
+    #     self.assertEqual(res.status_code, 400)
+    #     self.assertEqual(res.json()["code"], 1005)
