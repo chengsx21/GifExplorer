@@ -29,7 +29,7 @@ class ElasticSearchEngine():
         self.client = Elasticsearch(
             ['https://router.nasuyun.com:9200'],
             http_auth=('gif_search', '8BOeYq2P3t2JPWn6G6jfVB5top'),
-            # scheme="https",
+            scheme="https",
         )
 
     def search_perfect(self, request):

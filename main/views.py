@@ -2473,7 +2473,7 @@ def image_search(req: HttpRequest):
         # tags 默认为 [] ，表示没有本项限制。
         if "tags" not in body:
             body["tags"] = []
-        # 检查 filter的类型
+        # 检查 filter 的类型
         try:
             assert isinstance(body["filter"], list)
             for each_filter in body["filter"]:
@@ -2511,7 +2511,7 @@ def image_search(req: HttpRequest):
             print(error)
             return request_failed(5, "INVALID_PAGE", data={"data": {}})
 
-        # 非正则表达式搜索的情形：target和 keyword 必须都非空串（""），或者都为空串，才合法。
+        # 非正则表达式搜索的情形：target 和 keyword 必须都非空串（""），或者都为空串，才合法。
         if body["type"] != "regex":
             try:
                 assert (body["target"] != "" and body["keyword"] != "") or (body["target"] == "" and body["keyword"] == "")
@@ -2593,7 +2593,7 @@ def image_search(req: HttpRequest):
             else:
                 return format_error()
 
-        # print(f"id_list = {id_list}")
+        # print(f"id_list[:10] = {id_list[:10]}")
         id_list = [id for id in id_list if GifMetadata.objects.filter(id=id).first()]
         # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)

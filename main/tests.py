@@ -2480,7 +2480,9 @@ class ViewsTests(TestCase):
                     {"range": {"height": {"gte": 0, "lte": 1000}}},
                     {"range": {"duration": {"gte": 0, "lte": 1000}}}
                 ],
-                "type": type,
+                "category": "food",
+                "tags": ["food"],
+                "type": "partial",
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
@@ -2516,3 +2518,92 @@ class ViewsTests(TestCase):
     #     res = self.image_search_with_correct_response_method("invalid json")
     #     self.assertEqual(res.status_code, 400)
     #     self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_wrong_target(self):
+        '''
+            Test image search wrong target
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            req = {
+                "target": "wrong target",
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "type": type,
+                "page": 1
+            }
+            res = self.image_search_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_missing_target(self):
+        '''
+            Test image search with missing target
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            req = {
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "type": type,
+                "page": 1
+            }
+            res = self.image_search_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_missing_keyword(self):
+        '''
+            Test image search with missing keyword
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)
+                if type == "regex":
+                    self.assertEqual(res.status_code, 200)
+                    self.assertEqual(res.json()["code"], 0)
+                    self.assertEqual(len(res.json()["data"]), 3)
+                else:
+                    self.assertEqual(res.status_code, 400)
+                    self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_missing_filter(self):
+        '''
+            Test image search with missing filter
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)                
+                self.assertEqual(res.status_code, 200)
+                self.assertEqual(res.json()["code"], 0)
+                self.assertEqual(len(res.json()["data"]), 3)
