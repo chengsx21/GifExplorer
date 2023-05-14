@@ -2343,7 +2343,6 @@ def image_allgifs(req: HttpRequest):
                     "id": 514,
                     "title": "Wonderful Gif",
                     "category": "sports",
-                    "gif_url": "https://wonderful-gif/apple.gif",
                     "uploader": "AliceBurn", 
                     "pub_time": "2023-03-21T19:02:16.305Z",
                 },
@@ -2351,7 +2350,6 @@ def image_allgifs(req: HttpRequest):
                     "id": 519,
                     "title": "Strong Man",
                     "category": "sports",
-                    "gif_url": "https://wonderful-gif/strong-man.gif",
                     "uploader": "AliceBurn", 
                     "pub_time": "2023-03-21T19:02:16.305Z",
                 }
@@ -2577,6 +2575,7 @@ def image_search(req: HttpRequest):
             # 连接搜索模块
             search_engine = config.SEARCH_ENGINE
 
+            # 如果用户已登录，将本次搜索记录到用户的搜索历史中
             if req.META.get("HTTP_AUTHORIZATION"):
                 encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
                 token = helpers.decode_token(encoded_token)

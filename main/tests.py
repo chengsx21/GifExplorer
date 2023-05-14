@@ -759,6 +759,12 @@ class ViewsTests(TestCase):
         }
         return self.client.post('/image/allgifs', data=req, content_type="application/json")
 
+    def image_search_with_wrong_response_method(self, req):
+        '''
+            Create a GET/image/search HttpRequest
+        '''
+        return self.client.get('/image/search', data=req, content_type="application/json")
+    
 
     def test_user_login(self):
         '''
@@ -2454,3 +2460,30 @@ class ViewsTests(TestCase):
         res = self.image_allgifs_with_wrong_response_method("food")
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_search_with_wrong_method(self):
+        '''
+            Test image search with wrong method
+        '''
+        req = {
+            "target": "title",
+            "keyword": "cat picture",
+            "filter": [
+                {"range": {"width": {"gte": 0, "lte": 1000}}},
+                {"range": {"height": {"gte": 0, "lte": 1000}}},
+                {"range": {"duration": {"gte": 0, "lte": 1000}}}
+            ],
+            "category": "sports",
+            "tags": ["animal", "cat"],
+            "type": "perfect",
+            "page": 1
+        }
+        res = self.image_search_with_wrong_response_method(req)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_image_search_with_wrong_method(self):
+        '''
+            Test image search with 
+        '''
+        pass
