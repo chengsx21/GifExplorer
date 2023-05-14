@@ -771,6 +771,12 @@ class ViewsTests(TestCase):
         '''
         return self.client.post('/image/search', data=req, content_type="application/json")
  
+    def image_search_with_token(self, req, token):
+        '''
+            Create a POST/user/message HttpRequest with token
+        '''
+        return self.client.post('/image/search', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
 
     def test_user_login(self):
         '''
@@ -2482,7 +2488,7 @@ class ViewsTests(TestCase):
                 ],
                 "category": "food",
                 "tags": ["food"],
-                "type": "partial",
+                "type": type,
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
@@ -2524,22 +2530,27 @@ class ViewsTests(TestCase):
             Test image search wrong target
         '''
         for type in ["perfect", "partial", "regex"]:
-            req = {
-                "target": "wrong target",
-                "keyword": "food",
-                "filter": [ 
-                    {"range": {"width": {"gte": 0, "lte": 1000}}},
-                    {"range": {"height": {"gte": 0, "lte": 1000}}},
-                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
-                ],
-                "category": "food",
-                "tags": ["food"],
-                "type": type,
-                "page": 1
-            }
-            res = self.image_search_with_correct_response_method(req)
-            self.assertEqual(res.status_code, 400)
-            self.assertEqual(res.json()["code"], 1005)
+            if type != "regex":
+                wrong_targets = ["wrong target"]
+            else:
+                wrong_targets = ["wrong target", ""]
+            for wrong_target in wrong_targets:
+                req = {
+                    "target": wrong_target,
+                    "keyword": "food",
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)
+                self.assertEqual(res.status_code, 400)
+                self.assertEqual(res.json()["code"], 1005)
 
     def test_image_search_with_missing_target(self):
         '''
@@ -2588,6 +2599,27 @@ class ViewsTests(TestCase):
                 else:
                     self.assertEqual(res.status_code, 400)
                     self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_missing_target_and_keyword(self):
+        '''
+            Test image search with missing target and keyword
+        '''
+        for type in ["perfect", "partial"]:
+            req = {
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "type": type,
+                "page": 1
+            }
+            res = self.image_search_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(len(res.json()["data"]), 3)
 
     def test_image_search_with_missing_filter(self):
         '''
@@ -2854,3 +2886,57 @@ class ViewsTests(TestCase):
                     res = self.image_search_with_correct_response_method(req)
                     self.assertEqual(res.status_code, 400)
                     self.assertEqual(res.json()["code"], 5)
+
+    def test_image_search_with_token(self):
+        '''
+            Test image search with token
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        for type in ["perfect", "partial"]:
+            req = {
+                "target": "title",
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "type": type,
+                "page": 1
+            }
+            res = self.image_search_with_token(req, token)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(len(res.json()["data"]), 3)
+
+        helpers.delete_token_from_white_list(token)
+
+    def test_image_search_with_invalid_token(self):
+        '''
+            Test image search with invalid token
+        '''
+        token = helpers.create_token(user_name="NotExist!", user_id=114514)
+
+        for type in ["perfect", "partial"]:
+            req = {
+                "target": "title",
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "type": type,
+                "page": 1
+            }
+            res = self.image_search_with_token(req, token)
+            self.assertEqual(res.status_code, 401)
+            self.assertEqual(res.json()["code"], 1001)
+
+        helpers.delete_token_from_white_list(token)
