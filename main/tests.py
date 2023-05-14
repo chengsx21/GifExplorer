@@ -2608,6 +2608,52 @@ class ViewsTests(TestCase):
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 3)
 
+    def test_image_search_with_missing_category(self):
+        '''
+            Test image search with missing category
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)                
+                self.assertEqual(res.status_code, 200)
+                self.assertEqual(res.json()["code"], 0)
+                self.assertEqual(len(res.json()["data"]), 3)
+
+    def test_image_search_with_missing_tags(self):
+        '''
+            Test image search with missing tags
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "category": "food",
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)                
+                self.assertEqual(res.status_code, 200)
+                self.assertEqual(res.json()["code"], 0)
+                self.assertEqual(len(res.json()["data"]), 3)
+
     def test_image_search_with_wrong_filter_type(self):
         '''
             Test image search with wrong filter type
