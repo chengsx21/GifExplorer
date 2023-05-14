@@ -2607,3 +2607,113 @@ class ViewsTests(TestCase):
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 3)
+
+    def test_image_search_with_wrong_filter_type(self):
+        '''
+            Test image search with wrong filter type
+        '''
+        ress = []
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }                
+                ress.append(self.image_search_with_correct_response_method(req))
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": [1, 2],
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                ress.append(self.image_search_with_correct_response_method(req))
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": [{"wrong key": {"width": {"gte": 0, "lte": 1000}}}],
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                ress.append(self.image_search_with_correct_response_method(req))
+        for res in ress:
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_wrong_keyword_type(self):
+        '''
+            Test image search with wrong keyword type
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": 112,
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "category": "food",
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)
+                self.assertEqual(res.status_code, 400)
+                self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_wrong_category_type(self):
+        '''
+            Test image search with wrong category type
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "category": 1.2,
+                    "tags": ["food"],
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)
+                self.assertEqual(res.status_code, 400)
+                self.assertEqual(res.json()["code"], 1005)
+
+    def test_image_search_with_wrong_tags_type(self):
+        '''
+            Test image search with wrong tags type
+        '''
+        for type in ["perfect", "partial", "regex"]:
+            for target in ["title", "uploader"]:
+                req = {
+                    "target": target,
+                    "keyword": "food",
+                    "filter": [ 
+                        {"range": {"width": {"gte": 0, "lte": 1000}}},
+                        {"range": {"height": {"gte": 0, "lte": 1000}}},
+                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                    ],
+                    "category": "food",
+                    "tags": "food",
+                    "type": type,
+                    "page": 1
+                }
+                res = self.image_search_with_correct_response_method(req)
+                self.assertEqual(res.status_code, 400)
+                self.assertEqual(res.json()["code"], 1005)
