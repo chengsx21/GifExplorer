@@ -368,6 +368,46 @@ def user_avatar(req: HttpRequest):
 
 @csrf_exempt
 @handle_errors
+def user_signature(req: HttpRequest):
+    '''
+    request:
+        - user token
+        - user signature
+    '''
+    if req.method == "POST":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+        user_name = token["user_name"]
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return unauthorized_error()
+        try:
+            body = json.loads(req.body.decode("utf-8"))
+            signature = body["signature"]
+        except (TypeError, KeyError) as error:
+            print(error)
+            return format_error(str(error))
+        user.signature = signature
+        user.save()
+
+        return_data = {
+            "data": {
+                "id": user.id,
+                "user_name": user.user_name,
+                "signature": user.signature
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
 def user_logout(req: HttpRequest):
     '''
     request:
@@ -2493,13 +2533,11 @@ def image_search(req: HttpRequest):
             query = Q()
             if body["filter"]:
                 ranges = [filter["range"] for filter in body["filter"]]
-                """
-                ranges = [
-                    {"width": {"gte": 0, "lte": 100}},
-                    {"height": {"gte": 0, "lte": 100}},
-                    {"duration": {"gte": 0, "lte": 100}}
-                ]
-                """
+                # ranges = [
+                #     {"width": {"gte": 0, "lte": 100}},
+                #     {"height": {"gte": 0, "lte": 100}},
+                #     {"duration": {"gte": 0, "lte": 100}}
+                # ]
                 for each_range in ranges:
                     if "width" in each_range:
                         query &= Q(width__gte=each_range["width"]["gte"])
@@ -2555,7 +2593,7 @@ def image_search(req: HttpRequest):
                 id_list = search_engine.search_partial(request=body)
             else:
                 return format_error()
-        
+
         id_list = [id for id in id_list if GifMetadata.objects.filter(id=id).first()]
         # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
