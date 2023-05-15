@@ -2577,7 +2577,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing keyword
         '''
-        for type in ["perfect", "partial"]:
+        for type in ["perfect", "partial", "regex"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2591,6 +2591,8 @@ class ViewsTests(TestCase):
                     "type": type,
                     "page": 1
                 }
+                if type == "regex":
+                    req["tags"] = ""
                 res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
