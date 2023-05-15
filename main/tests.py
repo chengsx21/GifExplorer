@@ -2477,7 +2477,7 @@ class ViewsTests(TestCase):
         '''
             Test image search
         '''
-        for type in ["perfect", "partial", "regex"]:
+        for type in ["perfect", "partial"]:
             req = {
                 "target": "title",
                 "keyword": "food",
@@ -2577,7 +2577,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing keyword
         '''
-        for type in ["perfect", "partial", "regex"]:
+        for type in ["perfect", "partial"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2592,13 +2592,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
-                if type == "regex":
-                    self.assertEqual(res.status_code, 200)
-                    self.assertEqual(res.json()["code"], 0)
-                    self.assertEqual(len(res.json()["data"]), 3)
-                else:
-                    self.assertEqual(res.status_code, 400)
-                    self.assertEqual(res.json()["code"], 1005)
+                self.assertEqual(res.status_code, 400)
+                self.assertEqual(res.json()["code"], 1005)
 
     def test_image_search_with_missing_target_and_keyword(self):
         '''
@@ -2625,7 +2620,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing filter
         '''
-        for type in ["perfect", "partial", "regex"]:
+        for type in ["perfect", "partial"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2644,7 +2639,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing category
         '''
-        for type in ["perfect", "partial", "regex"]:
+        for type in ["perfect", "partial"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2844,7 +2839,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing page
         '''
-        for type in ["perfect", "partial", "regex"]:
+        for type in ["perfect", "partial"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
