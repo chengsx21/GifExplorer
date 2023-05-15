@@ -2343,7 +2343,6 @@ def image_allgifs(req: HttpRequest):
                     "id": 514,
                     "title": "Wonderful Gif",
                     "category": "sports",
-                    "gif_url": "https://wonderful-gif/apple.gif",
                     "uploader": "AliceBurn", 
                     "pub_time": "2023-03-21T19:02:16.305Z",
                 },
@@ -2351,7 +2350,6 @@ def image_allgifs(req: HttpRequest):
                     "id": 519,
                     "title": "Strong Man",
                     "category": "sports",
-                    "gif_url": "https://wonderful-gif/strong-man.gif",
                     "uploader": "AliceBurn", 
                     "pub_time": "2023-03-21T19:02:16.305Z",
                 }
@@ -2475,7 +2473,7 @@ def image_search(req: HttpRequest):
         # tags 默认为 [] ，表示没有本项限制。
         if "tags" not in body:
             body["tags"] = []
-        # 检查 filter的类型
+        # 检查 filter 的类型
         try:
             assert isinstance(body["filter"], list)
             for each_filter in body["filter"]:
@@ -2489,6 +2487,8 @@ def image_search(req: HttpRequest):
             assert isinstance(body["keyword"], str)
             assert isinstance(body["category"], str)
             assert isinstance(body["tags"], list)
+            for tag in body["tags"]:
+                assert isinstance(tag, str)
         except Exception as error:
             print(error)
             return format_error()
@@ -2513,7 +2513,7 @@ def image_search(req: HttpRequest):
             print(error)
             return request_failed(5, "INVALID_PAGE", data={"data": {}})
 
-        # 非正则表达式搜索的情形：target和 keyword 必须都非空串（""），或者都为空串，才合法。
+        # 非正则表达式搜索的情形：target 和 keyword 必须都非空串（""），或者都为空串，才合法。
         if body["type"] != "regex":
             try:
                 assert (body["target"] != "" and body["keyword"] != "") or (body["target"] == "" and body["keyword"] == "")
@@ -2577,6 +2577,7 @@ def image_search(req: HttpRequest):
             # 连接搜索模块
             search_engine = config.SEARCH_ENGINE
 
+            # 如果用户已登录，将本次搜索记录到用户的搜索历史中
             if req.META.get("HTTP_AUTHORIZATION"):
                 encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
                 token = helpers.decode_token(encoded_token)
@@ -2594,6 +2595,7 @@ def image_search(req: HttpRequest):
             else:
                 return format_error()
 
+        # print(f"id_list[:10] = {id_list[:10]}")
         id_list = [id for id in id_list if GifMetadata.objects.filter(id=id).first()]
         # print(f"id_list = {id_list}")
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
