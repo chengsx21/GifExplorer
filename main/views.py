@@ -2487,6 +2487,8 @@ def image_search(req: HttpRequest):
             assert isinstance(body["keyword"], str)
             assert isinstance(body["category"], str)
             assert isinstance(body["tags"], list)
+            for tag in body["tags"]:
+                assert isinstance(tag, str)
         except Exception as error:
             print(error)
             return format_error()
