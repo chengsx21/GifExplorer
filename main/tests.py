@@ -150,15 +150,15 @@ class ViewsTests(TestCase):
 
     def user_password_with_wrong_response_method(self, user_id):
         '''
-            Create a POST/user/password HttpRequest
-        '''
-        return self.client.post('/user/password/' + str(user_id))
-
-    def user_password_with_correct_response_method(self, user_id):
-        '''
             Create a GET/user/password HttpRequest
         '''
         return self.client.get('/user/password/' + str(user_id))
+
+    def user_password_with_correct_response_method(self, user_id):
+        '''
+            Create a POST/user/password HttpRequest
+        '''
+        return self.client.post('/user/password/' + str(user_id))
 
     def user_login_with_wrong_response_method(self, user_name, password):
         '''
