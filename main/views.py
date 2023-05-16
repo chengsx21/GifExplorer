@@ -2584,8 +2584,8 @@ def image_search(req: HttpRequest):
                 id_list = search_engine.search_perfect(request=body)
             elif body["type"] == "partial":
                 id_list = search_engine.search_partial(request=body)
-            # elif body["type"] == "fuzzy":
-            #     id_list = search_engine.search_fuzzy(target=body["target"], keyword=body["keyword"])
+            elif body["type"] == "fuzzy":
+                id_list = search_engine.search_fuzzy(request=body)
             else:
                 return format_error()
 

@@ -228,8 +228,12 @@ class ElasticSearchEngine():
 
         # filter category
         if request["category"] != "":
-            must_array.append(
-                {"term": {"category.keyword": request["category"]}})
+            must_array.append({
+                "term": {
+                    "category.keyword": request["category"]
+                }
+            })
+
 
         # filter tags
         # tags provided by user should be the subset of real gif tags
@@ -266,42 +270,104 @@ class ElasticSearchEngine():
     #             }
     #         }
 
-    # [fuzzy match]
-    # params
-    #   keyword(str): segmentation for keyword and
-    #   segmented words must be adjacent
-    # return gif containing keyword as a phrase
+    def search_fuzzy(self, request):
+        '''
+        [fuzzy match]
+        [params]
+            requset: filter info
+            {
+                "target": str, (default="")
+                "keyword": str, (default="")
+                "category": str, (default="")
+                "filter": [
+                    {"range": {"width": {"gte": min, "lte": max}}},
+                    {"range": {"height": {"gte": min, "lte": max}}},
+                    {"range": {"duration": {"gte": min, "lte": max}}}
+                ], (default=[])
+                "tags": [str1, str2, str3 ...] (default=[])
+            }
+            all segments are optional
+        [return]
+            list of gif ids, sorted by correlation scores
+        '''
 
-    # def search_fuzzy(self, keyword, target):
-    #     if target == "title":
-    #         body = {
-    #             "query": {
-    #                 "fuzzy": {
-    #                     "title": keyword
-    #                 }
-    #             }
-    #         }
-    #     elif target == "uploader":
-    #         body = {
-    #             "query": {
-    #                 "fuzzy": {
-    #                     "uploader": keyword
-    #                 }
-    #             }
-    #         }
-    #     elif target == "category":
-    #         body = {
-    #             "query": {
-    #                 "fuzzy": {
-    #                     "category": keyword
-    #                 }
-    #             }
-    #         }
-    #     else:
-    #         assert False
-    #     response = self.client.search(body=body, size=1000)
-    #     # hits_num = response["hits"]["total"]["value"]
-    #     return [hit["_id"] for hit in response["hits"]["hits"]]
+        body = {
+            "query": {
+                "bool": {
+                    "must": []
+                }
+            }
+        }
+
+        # match title or uploader
+        must_array = []
+        if request["target"] == "uploader":
+            # must_array.append({
+            #     "fuzzy": {
+            #         "title": {
+            #             "value": request["keyword"],
+            #             "fuzziness": "AUTO",
+            #             # "transpositions": True,
+            #             # fuzziness：最大编辑距离，一个字符串要与另一个字符串相同必须更改的一个字符数】。默认为AUTO。
+            #             # prefix_length：不会被“模糊化”的初始字符数。这有助于减少必须检查的术语数量。默认为0。
+            #             # max_expansions：fuzzy查询将扩展到的最大术语数。默认为50。
+            #             # transpositions：是否支持模糊转置（ab→ ba）。默认值为false。
+            #         }
+            #     }
+            # })
+            must_array.append({
+                "match": {
+                    "uploader": {
+                        "query": request["keyword"],
+                        "fuzziness": "AUTO",
+                        "operator": "and"
+                    }
+                }
+            })
+        elif request["target"] == "title":
+            must_array.append({
+                "match": {
+                    "title": {
+                        "query": request["keyword"],
+                        "fuzziness": "AUTO",
+                        "operator": "and"
+                    }
+                }
+            })
+
+        # filter width / height / duration
+        must_array += request["filter"]
+
+        # filter category
+        if request["category"] != "":
+            must_array.append({
+                "term": {
+                    "category.keyword": request["category"]
+                }
+            })
+
+        # filter tags
+        # tags provided by user should be the subset of real gif tags
+        tags = request["tags"]
+        if tags:
+            must_array.append({"terms_set": {
+                "tags": {
+                    "terms": tags,
+                    "minimum_should_match_script": {
+                        "source": str(len(tags))
+                    }
+                }
+            }})
+
+        body["query"]["bool"]["must"] = must_array
+       
+        response = self.client.search(body=body, size=10000, preference="primary")
+
+        # from pprint import pprint
+        # pprint(response["hits"]["hits"][:10])
+        # hits_num = response["hits"]["total"]["value"]
+        return [hit["_id"] for hit in response["hits"]["hits"]]
+
 
     def hotwords_search(self):
         """
