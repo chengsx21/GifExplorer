@@ -777,6 +777,18 @@ class ViewsTests(TestCase):
         '''
         return self.client.post('/image/search', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
+    def search_suggest_with_wrong_response_method(self, req):
+        '''
+            Create a GET/image/search/suggest HttpRequest
+        '''
+        return self.client.get('/image/search/suggest', data=req, content_type="application/json")
+
+    def search_suggest_with_correct_response_method(self, req):
+        '''
+            Create a POST/image/search/suggest HttpRequest
+        '''
+        return self.client.post('/image/search/suggest', data=req, content_type="application/json")
+
 
     def test_user_login(self):
         '''
@@ -2951,3 +2963,36 @@ class ViewsTests(TestCase):
             self.assertEqual(res.json()["code"], 1001)
 
         helpers.delete_token_from_white_list(token)
+
+    def test_search_suggest(self):
+        '''
+            Test search suggest
+        '''
+        req = {
+            "query": "f"
+        }
+        res = self.search_suggest_with_correct_response_method(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 1)
+
+    def test_search_suggest_with_wrong_method(self):
+        '''
+            Test search suggest with wrong method
+        '''
+        req = {
+            "query": "f"
+        }
+        res = self.search_suggest_with_wrong_response_method(req)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)
+
+    def test_search_suggest_with_missing_query(self):
+        '''
+            Test search suggest with missing query
+        '''
+        req = {}
+        res = self.search_suggest_with_correct_response_method(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 1)
