@@ -170,6 +170,16 @@ class ViewsTests(TestCase):
         }
         return self.client.get('/user/login', data=req, content_type="application/json")
 
+    def user_login_with_wrong_format(self, user_name, password):
+        '''
+            Create a POST/user/login HttpRequest
+        '''
+        req = {
+            "username": user_name,
+            "password": password
+        }
+        return self.client.post('/user/login', data=req, content_type="application/json")
+
     def user_login_with_correct_response_method(self, user_name, password):
         '''
             Create a POST/user/login HttpRequest
@@ -190,6 +200,17 @@ class ViewsTests(TestCase):
             "new_password": new_password
         }
         return self.client.get('/user/modifypassword', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
+    def user_modify_password_with_wrong_format(self, user_name, old_password, new_password, token):
+        '''
+            Create a POST/user/modifypassword HttpRequest
+        '''
+        req = {
+            "username": user_name,
+            "old_password": old_password,
+            "new_password": new_password
+        }
+        return self.client.post('/user/modifypassword', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
     def user_modify_password_with_correct_response_method(self, user_name, old_password, new_password, token):
         '''
@@ -874,6 +895,14 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 4)
 
+    def test_user_login_with_wrong_format(self):
+        '''
+            Test user login with wrong format
+        '''
+        res = self.user_login_with_wrong_format(user_name="Wrong_name!", password="Wrong!")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+
     def test_user_mail_verify(self):
         '''
             Test user mail verify
@@ -1094,6 +1123,22 @@ class ViewsTests(TestCase):
             res = self.user_modify_password_with_wrong_response_method(user_name=user_name, old_password=old_password, new_password=new_password, token=token)
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.json()["code"], 1000)
+            helpers.delete_token_from_white_list(token)
+
+    def test_user_modify_password_with_wrong_format(self):
+        '''
+            Test user modify password with wrong format
+        '''
+        for i in range(self.user_num):
+            user_name = self.user_name_list[i]
+            old_password = self.user_password[i]
+            new_password = "New!" + self.user_password[i]
+
+            token = self.user_token[i]
+            helpers.add_token_to_white_list(token)
+            res = self.user_modify_password_with_wrong_format(user_name=user_name, old_password=old_password, new_password=new_password, token=token)
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["code"], 1005)
             helpers.delete_token_from_white_list(token)
 
     def test_user_modify_password_with_wrong_token(self):

@@ -290,14 +290,10 @@ def user_modify_password(req: HttpRequest):
             user_name = body["user_name"]
             old_password = body["old_password"]
             new_password = body["new_password"]
-        except (TypeError, ValueError) as error:
+        except (TypeError, KeyError) as error:
             print(error)
             return format_error(str(error))
 
-        if not helpers.user_username_checker(user_name):
-            return request_failed(2, "INVALID_USER_NAME_FORMAT", data={"data": {}})
-        if not (isinstance(old_password, str) and isinstance(new_password, str)):
-            return request_failed(3, "INVALID_PASSWORD_FORMAT", data={"data": {}})
         if not user_name == token["user_name"]:
             return unauthorized_error()
 
