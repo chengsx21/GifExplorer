@@ -24,6 +24,7 @@ class UserInfo(models.Model):
     comment_favorites = models.JSONField(null=True, blank=True, default=list)
     read_history = models.JSONField(null=True, blank=True, default=dict)
     search_history = models.JSONField(null=True, blank=True, default=dict)
+    task_history = models.JSONField(null=True, blank=True, default=dict)
     objects = models.Manager()
 
     def __str__(self) -> str:
@@ -164,3 +165,21 @@ class GifShare(models.Model):
             set table name in db
         '''
         db_table = "gifshare"
+
+class TaskInfo(models.Model):
+    '''
+        model for task
+    '''
+    id = models.BigAutoField(primary_key=True)
+    task_id = models.CharField(null=True, blank=True, max_length=200)
+    task_type = models.CharField(max_length=200)
+    task_status = models.CharField(max_length=200)
+    task_time = models.DateTimeField(auto_now_add=True)
+    task_result = models.JSONField(null=True, blank=True, default=dict)
+    objects = models.Manager()
+
+    class Meta:
+        '''
+            set table name in db
+        '''
+        db_table = "taskinfo"
