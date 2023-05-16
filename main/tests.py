@@ -277,6 +277,15 @@ class ViewsTests(TestCase):
         }
         return self.client.put('/user/signature', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
+    def user_signature_with_wrong_format(self, signature, token):
+        '''
+            Create a POST/user/signature HttpRequest
+        '''
+        req = {
+            'signatures': signature
+        }
+        return self.client.post('/user/signature', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+
     def user_signature_with_correct_response_method(self, signature, token):
         '''
             Create a POST/user/signature HttpRequest
@@ -1244,10 +1253,20 @@ class ViewsTests(TestCase):
         res = self.user_avatar_with_file_not_exist(url="files/tests/avatar.jpeg", token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 18)
-        res = self.user_avatar_with_file_not_exist(url="files/tests/Milk.gif", token=token)
+        res = self.user_avatar_with_correct_response_method(url="files/tests/Milk.gif", token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 18)
         helpers.delete_token_from_white_list(token)
+
+    def test_user_avatar_with_user_not_exists(self):
+        '''
+            Test user avatar with user not exists
+        '''
+        token = helpers.create_token(user_name="Not exist", user_id=100)
+
+        res = self.user_avatar_with_correct_response_method(url="files/tests/avatar.jpeg", token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
 
     def test_user_signature(self):
         '''
@@ -1292,6 +1311,28 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
         helpers.delete_token_from_white_list(token)
+
+    def test_user_signature_with_wrong_format(self):
+        '''
+            Test user signature with wrong format
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+
+        res = self.user_signature_with_wrong_format(signature="I am the Lord", token=token)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1005)
+        helpers.delete_token_from_white_list(token)
+
+    def test_user_signature_with_user_not_exists(self):
+        '''
+            Test user signature with user not exists
+        '''
+        token = helpers.create_token(user_name="Not exist", user_id=100)
+
+        res = self.user_signature_with_correct_response_method(signature="I am the Lord", token=token)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["code"], 1001)
 
     def test_user_avatar_get(self):
         '''
