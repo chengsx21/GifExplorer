@@ -121,12 +121,7 @@ def user_mail_verify(req: HttpRequest, token: str):
         verify user's email.
     '''
     if req.method == "GET":
-        try:
-            user = UserVerification.objects.filter(token=token).first()
-        except (TypeError, KeyError) as error:
-            print(error)
-            return format_error(str(error))
-
+        user = UserVerification.objects.filter(token=token).first()
         if not user:
             return request_failed(15, "INVALID_TOKEN", data={"data": {}})
         if user.is_verified is True:
@@ -2432,7 +2427,7 @@ def image_search(req: HttpRequest):
         }
         格式错误：
         {
-            "code": 1005, 
+            "code": , 
             "info": "INVALID_FORMAT",
             "data": {}
         }
