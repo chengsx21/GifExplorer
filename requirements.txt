@@ -16,3 +16,5 @@ coverage
 pyJWT
 uWSGI
 Pillow
+# scikit-image
+# tensorflow
