@@ -2651,6 +2651,7 @@ def search_suggest(req: HttpRequest):
                     "suggestions": suggestion_list
                 }
             })
+    return not_found_error()
 
 @csrf_exempt
 @handle_errors
