@@ -325,6 +325,12 @@ class ViewsTests(TestCase):
         '''
         return self.client.post('/user/profile/'+user_id)
 
+    def user_profile_with_token(self, user_id, token):
+        '''
+            Create a GET/user/profile HttpRequest
+        '''
+        return self.client.get('/user/profile/'+user_id, HTTP_AUTHORIZATION=token)
+
     def user_profile_with_correct_response_method(self, user_id):
         '''
             Create a GET/user/profile HttpRequest
@@ -1020,7 +1026,7 @@ class ViewsTests(TestCase):
             Test user password
         '''
         for i in range(self.user_num):
-            res = self.user_password_with_correct_response_method(user_id=i+1)
+            res = self.user_password_with_correct_response_method(user_id=self.user_id[i])
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
 
@@ -1175,7 +1181,7 @@ class ViewsTests(TestCase):
             old_password = self.user_password[i]
             new_password = "New!" + self.user_password[i]
 
-            token = helpers.create_token(user_name=user_name, user_id=i+1)
+            token = helpers.create_token(user_name=user_name, user_id=self.user_id[i])
             helpers.add_token_to_white_list(token)
             res = self.user_modify_password_with_correct_response_method(user_name=user_name, old_password=old_password, new_password=new_password, token=token)
             self.assertEqual(res.status_code, 400)
@@ -1426,6 +1432,28 @@ class ViewsTests(TestCase):
             res = self.user_profile_with_correct_response_method(str(self.user_id[i]))
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
+
+    def test_user_profile_with_token(self):
+        '''
+            Test user profile with token
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        self.user_follow_with_correct_response_method(user_id=2, token=token)
+        res = self.user_profile_with_correct_response_method(str(2))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+
+    def test_user_profile_with_invalid_token(self):
+        '''
+            Test user profile with invalid token
+        '''
+        token = self.user_token[0]
+        helpers.add_token_to_white_list(token)
+        self.user_follow_with_correct_response_method(user_id=2, token=token)
+        res = self.user_profile_with_correct_response_method(str(2))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
 
     def test_user_profile_with_wrong_response_method(self):
         '''
@@ -2670,7 +2698,7 @@ class ViewsTests(TestCase):
             res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
-            self.assertEqual(len(res.json()["data"]), 3)
+            self.assertEqual(len(res.json()["data"]), 4)
 
     def test_image_search_with_wrong_method(self):
         '''
@@ -2773,7 +2801,7 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     self.assertEqual(res.status_code, 200)
                     self.assertEqual(res.json()["code"], 0)
-                    self.assertEqual(len(res.json()["data"]), 3)
+                    self.assertEqual(len(res.json()["data"]), 4)
                 else:
                     self.assertEqual(res.status_code, 400)
                     self.assertEqual(res.json()["code"], 1005)
@@ -2797,7 +2825,7 @@ class ViewsTests(TestCase):
             res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
-            self.assertEqual(len(res.json()["data"]), 3)
+            self.assertEqual(len(res.json()["data"]), 4)
 
     def test_image_search_with_missing_filter(self):
         '''
@@ -2818,7 +2846,7 @@ class ViewsTests(TestCase):
                 res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
-                self.assertEqual(len(res.json()["data"]), 3)
+                self.assertEqual(len(res.json()["data"]), 4)
 
     def test_image_search_with_missing_category(self):
         '''
@@ -2843,7 +2871,7 @@ class ViewsTests(TestCase):
                 res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
-                self.assertEqual(len(res.json()["data"]), 3)
+                self.assertEqual(len(res.json()["data"]), 4)
 
     def test_image_search_with_missing_tags(self):
         '''
@@ -2866,7 +2894,7 @@ class ViewsTests(TestCase):
                 res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
-                self.assertEqual(len(res.json()["data"]), 3)
+                self.assertEqual(len(res.json()["data"]), 4)
 
     def test_image_search_with_wrong_filter_type(self):
         '''
@@ -2999,7 +3027,7 @@ class ViewsTests(TestCase):
             res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
-            self.assertEqual(len(res.json()["data"]), 3)
+            self.assertEqual(len(res.json()["data"]), 4)
 
     def test_image_search_with_wrong_type(self):
         '''
@@ -3046,7 +3074,7 @@ class ViewsTests(TestCase):
                 res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
-                self.assertEqual(len(res.json()["data"]), 3)
+                self.assertEqual(len(res.json()["data"]), 4)
 
     def test_image_search_with_wrong_page(self):
         '''
@@ -3096,7 +3124,7 @@ class ViewsTests(TestCase):
             res = self.image_search_with_token(req, token)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
-            self.assertEqual(len(res.json()["data"]), 3)
+            self.assertEqual(len(res.json()["data"]), 4)
 
         helpers.delete_token_from_white_list(token)
 

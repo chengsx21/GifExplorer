@@ -2519,6 +2519,7 @@ def image_search(req: HttpRequest):
                 print(error)
                 return format_error()
 
+        search_start_time = time.time()
         # 通过正则表达式搜索
         if body["type"] == "regex":
             query = Q()
@@ -2586,6 +2587,8 @@ def image_search(req: HttpRequest):
             else:
                 return format_error()
 
+        search_finish_time = time.time()
+
         # print(f"id_list[:10] = {id_list[:10]}")
         id_list = [id for id in id_list if GifMetadata.objects.filter(id=id).first()]
         # print(f"id_list = {id_list}")
@@ -2597,7 +2600,8 @@ def image_search(req: HttpRequest):
                 "data": {
                     "page_count": pages,
                     "page_data": gif_list,
-                    "time": finish_time - start_time
+                    "time": finish_time - start_time,
+                    "search_time": search_finish_time - search_start_time
                 }
             })
     return not_found_error()
