@@ -9,14 +9,27 @@ from elasticsearch import Elasticsearch
 
 class ElasticSearchEngine():
 
-    """ElasticEngine
+    """
+    [ElasticEngine]
+        functions are named as <target>_search_<search mode>
+        e.g. target = suggest/hotwords/personlization
+        e.g. search mode = perfect/partial
+
     - search function
-        |- perfect search
-        |- partial search
+        |- search_perfect
+        |- search_partial
     - suggest function
-        |- completion
+        |- suggest_search
+        |- personlization_search
+        |- hotwords_search
     - synchronization function
         |- post metadata
+    - test function
+        |- test_search_perfect
+        |- test_post_metadata
+        |- test_suggest_search
+        |- test_personlization_search
+        |- test_hotwords_search
     """
 
     # Use Kibana to test
@@ -90,11 +103,12 @@ class ElasticSearchEngine():
         # match title or uploader
         must_array = []
         target = request["target"]
+        search_text = request["keyword"]
         if target == "uploader":
             must_array.append(
-                {"term": {"uploader.keyword": request["keyword"]}})
+                {"term": {"uploader.keyword": search_text}})
         elif target == "title":
-            must_array.append({"term": {"title.keyword": request["keyword"]}})
+            must_array.append({"term": {"title.keyword": search_text}})
 
         # filter width / height / duration
         must_array += request["filter"]
@@ -118,6 +132,7 @@ class ElasticSearchEngine():
             }})
 
         body["query"]["bool"]["must"] = must_array
+        self.client.index(index="message_index", body={"message": search_text})
         response = self.client.search(body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
@@ -188,6 +203,7 @@ class ElasticSearchEngine():
         # match title or uploader
         must_array = []
         target = request["target"]
+        search_text = request["keyword"]
         if target == "uploader":
             must_array.append({
                 "match": {
@@ -229,6 +245,7 @@ class ElasticSearchEngine():
             }})
 
         body["query"]["bool"]["must"] = must_array
+        self.client.index(index="message_index", body={"message": search_text})
         response = self.client.search(body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
@@ -286,11 +303,31 @@ class ElasticSearchEngine():
     #     # hits_num = response["hits"]["total"]["value"]
     #     return [hit["_id"] for hit in response["hits"]["hits"]]
 
+    def hotwords_search(self):
+        """
+        [hot words]
+            Provide hot candidate words based on search history.
+   
+        [params]
+            None
 
-    def hot_search(self):
+        [return value]
+            list of hot candidate words
         """
-        """
-        pass
+
+        body = {
+            "size" : 0,  
+            "aggs" : {   
+                "messages" : {   
+                    "terms" : {   
+                        "size" : 10,
+                        "field" : "message"
+                    }
+                }
+            }
+        }
+        response = self.client.search(index="message_index", body=body)
+        return [bucket["key"] for bucket in response["aggregations"]["messages"]["buckets"]]
 
     def personalization_search(self, tag_fre):
         """
@@ -438,6 +475,7 @@ class ElasticSearchEngine():
             body=json.dumps(data)
         )
         return response
+# end ElasticSearchEngine
 
 
 def test_perfect_search():
@@ -447,20 +485,16 @@ def test_perfect_search():
 
     request1 = {
         "target": "uploader",
-        "keyword": "spider126",
+        "keyword": "spider",
         "category": "",
         "filter": [],
         "tags": []
     }
 
     response = ElasticSearchEngine().search_perfect(request1)
-    print(response)
+    # print(response)
     assert len(response) > 0
-
-    # request2 = {
-    #     "target": "title",
-    #     ""
-    # }
+    print("[test perfect search pass]")
 
 
 def test_post_metadata():
@@ -489,24 +523,41 @@ def test_post_metadata():
     response = ElasticSearchEngine().post_metadata(request1)
 
     # unit test
-    print("response: ", response)
+    # print("response: ", response)
     assert int(response["_id"]) == request1["id"]
+    print("[test post metadata pass]")
+
+
+def test_hotwords_search():
+    """
+    Unit test for hot search
+    """
+
+    response = ElasticSearchEngine().hotwords_search()
+    print("response: ", response)
+    assert response
+    print("[test hot word pass]")
+
 
 def test_suggest_search():
     """
     Unit test for suggest search
     """
     response = ElasticSearchEngine().suggest_search("f")
-    print("response: ", response)
+    # print("response: ", response)
     for op in response:
         assert op[0] == "f" or op[0] == "F"
+    print("[test suggest search pass]")
+
 
 def test_personlization_search():
     """
     Unit test for personlization search
     """
     response = ElasticSearchEngine().personalization_search({"dog": 0.9, "animal": 0.1})
-    print("response: ", response)
+    # print("response: ", response)
+    print("[test personlization search pass]")
+
 
 
 if __name__ == "__main__":
@@ -515,10 +566,10 @@ if __name__ == "__main__":
     test_post_metadata()
     test_suggest_search()
     test_personlization_search()
+    test_hotwords_search()
 
 
 # if __name__ == "__main__":
-#     es = ElasticSearchEngine()
 
 #     # test perfect match
 #     request1 = {

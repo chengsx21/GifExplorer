@@ -858,6 +858,18 @@ class ViewsTests(TestCase):
             Create a POST/image/search/suggest HttpRequest
         '''
         return self.client.post('/image/search/suggest', data=req, content_type="application/json")
+    
+    def search_hotwords_with_worng_response_method(self):
+        '''
+            Create a POST/image/search/hotwords HttpRequest
+        '''
+        return self.client.post('/image/search/hotwords', content_type="application/json")
+
+    def search_hotwords_with_correct_response_method(self):
+        '''
+            Create a GET/image/search/hotwords HttpRequest
+        '''
+        return self.client.get('/image/search/hotwords', content_type="application/json")
 
 
     def test_startup(self):
@@ -3198,3 +3210,20 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         self.assertEqual(len(res.json()["data"]), 1)
+
+    def test_search_hotwords(self):
+        '''
+            Test search hotwords
+        '''
+        res = self.search_hotwords_with_correct_response_method()
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        assert isinstance(res.json()["data"], list)
+
+    def test_search_hotwords_with_wrong_method(self):
+        '''
+            Test search hotwords with wrong method
+        '''
+        res = self.search_hotwords_with_worng_response_method()
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 1000)

@@ -2584,6 +2584,8 @@ def image_search(req: HttpRequest):
                 id_list = search_engine.search_perfect(request=body)
             elif body["type"] == "partial":
                 id_list = search_engine.search_partial(request=body)
+            # elif body["type"] == "fuzzy":
+            #     id_list = search_engine.search_fuzzy(target=body["target"], keyword=body["keyword"])
             else:
                 return format_error()
 
@@ -2660,4 +2662,27 @@ def image_gifs_count(req: HttpRequest):
     if req.method == "GET":
         count = GifMetadata.objects.count()
         return request_success(data={"data": count})
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def search_hotwords(req: HttpRequest):
+    """
+    request:
+        None
+    response:
+        {
+            "code": 0,
+            "message": "SUCCESS",
+            "data": {
+                ['spider', 'dog', 'hello', 'large', 'still', 'word']
+            }
+        }
+    """
+    if req.method == "GET":
+        search_engine = config.SEARCH_ENGINE
+        hotwords_list = search_engine.hotwords_search()
+        return request_success(data={
+                "data": hotwords_list
+            })
     return not_found_error()
