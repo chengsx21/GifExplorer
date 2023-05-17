@@ -2703,7 +2703,7 @@ class ViewsTests(TestCase):
         '''
             Test image search
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             req = {
                 "target": "title",
                 "keyword": "food",
@@ -2757,7 +2757,7 @@ class ViewsTests(TestCase):
         '''
             Test image search wrong target
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             if each_type != "regex":
                 wrong_targets = ["wrong target"]
             else:
@@ -2784,7 +2784,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing target
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             req = {
                 "keyword": "food",
                 "filter": [ 
@@ -2805,7 +2805,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing keyword
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2834,7 +2834,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing target and keyword
         '''
-        for each_type in ["perfect", "partial"]:
+        for each_type in ["perfect", "partial", "fuzzy"]:
             req = {
                 "filter": [ 
                     {"range": {"width": {"gte": 0, "lte": 1000}}},
@@ -2855,7 +2855,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing filter
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2876,7 +2876,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing category
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2901,7 +2901,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing tags
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2925,7 +2925,7 @@ class ViewsTests(TestCase):
             Test image search with wrong filter type
         '''
         ress = []
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2965,7 +2965,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with wrong keyword type
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -2988,7 +2988,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with wrong category type
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -3011,7 +3011,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with wrong tags type
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 for wrong_tag in ["food", 1, [0, "foods"]]:
                     req = {
@@ -3079,7 +3079,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing page
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 req = {
                     "target": target,
@@ -3104,7 +3104,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with wrong page
         '''
-        for each_type in ["perfect", "partial", "regex"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 for wrong_page in ["1", 1.2, 0, -100]:
                     req = {
@@ -3131,7 +3131,7 @@ class ViewsTests(TestCase):
         token = self.user_token[0]
         helpers.add_token_to_white_list(token)
 
-        for each_type in ["perfect", "partial"]:
+        for each_type in ["perfect", "partial", "fuzzy"]:
             req = {
                 "target": "title",
                 "keyword": "food",
@@ -3158,7 +3158,7 @@ class ViewsTests(TestCase):
         '''
         token = helpers.create_token(user_name="NotExist!", user_id=114514)
 
-        for each_type in ["perfect", "partial"]:
+        for each_type in ["perfect", "partial", "fuzzy"]:
             req = {
                 "target": "title",
                 "keyword": "food",
