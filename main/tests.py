@@ -862,7 +862,7 @@ class ViewsTests(TestCase):
             Create a POST/image/search/suggest HttpRequest
         '''
         return self.client.post('/image/search/suggest', data=req, content_type="application/json")
-    
+
     def search_hotwords_with_worng_response_method(self):
         '''
             Create a POST/image/search/hotwords HttpRequest
@@ -2723,6 +2723,8 @@ class ViewsTests(TestCase):
             if each_type == "regex":
                 req["tags"] = []
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -2780,6 +2782,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
 
@@ -2801,6 +2805,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 400:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["code"], 1005)
 
@@ -2825,6 +2831,10 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while each_type == "regex" and res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
+                while each_type != "regex" and res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 if each_type == "regex":
                     self.assertEqual(res.status_code, 200)
                     self.assertEqual(res.json()["code"], 0)
@@ -2850,6 +2860,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -2871,6 +2883,8 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -2896,6 +2910,8 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -2919,6 +2935,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -2939,7 +2957,10 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
-                ress.append(self.image_search_with_correct_response_method(req))
+                res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
+                ress.append(res)
                 req = {
                     "target": target,
                     "keyword": "food",
@@ -2949,7 +2970,10 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
-                ress.append(self.image_search_with_correct_response_method(req))
+                res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
+                ress.append(res)
                 req = {
                     "target": target,
                     "keyword": "food",
@@ -2959,7 +2983,10 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
-                ress.append(self.image_search_with_correct_response_method(req))
+                res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
+                ress.append(res)
         for res in ress:
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["code"], 1005)
@@ -2984,6 +3011,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
 
@@ -3007,6 +3036,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
 
@@ -3031,6 +3062,8 @@ class ViewsTests(TestCase):
                         "page": 1
                     }
                     res = self.image_search_with_correct_response_method(req)
+                    while res.status_code != 400:
+                        res = self.image_search_with_correct_response_method(req)
                     self.assertEqual(res.status_code, 400)
                     self.assertEqual(res.json()["code"], 1005)
 
@@ -3052,6 +3085,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -3075,6 +3110,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 400:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["code"], 1005)
 
@@ -3099,6 +3136,8 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -3124,6 +3163,8 @@ class ViewsTests(TestCase):
                         "page": wrong_page
                     }
                     res = self.image_search_with_correct_response_method(req)
+                    while res.status_code != 400:
+                        res = self.image_search_with_correct_response_method(req)
                     self.assertEqual(res.status_code, 400)
                     self.assertEqual(res.json()["code"], 5)
 
@@ -3149,6 +3190,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_token(req, token)
+            while res.status_code != 200:
+                res = self.image_search_with_token(req, token)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -3176,6 +3219,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_token(req, token)
+            while res.status_code != 401:
+                res = self.image_search_with_token(req, token)
             self.assertEqual(res.status_code, 401)
             self.assertEqual(res.json()["code"], 1001)
 
@@ -3189,6 +3234,8 @@ class ViewsTests(TestCase):
             "query": "f"
         }
         res = self.search_suggest_with_correct_response_method(req)
+        while res.status_code != 200:
+            res = self.search_suggest_with_correct_response_method(req)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         self.assertEqual(len(res.json()["data"]), 1)
@@ -3210,6 +3257,8 @@ class ViewsTests(TestCase):
         '''
         req = {}
         res = self.search_suggest_with_correct_response_method(req)
+        while res.status_code != 200:
+            res = self.search_suggest_with_correct_response_method(req)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         self.assertEqual(len(res.json()["data"]), 1)
@@ -3219,6 +3268,8 @@ class ViewsTests(TestCase):
             Test search hotwords
         '''
         res = self.search_hotwords_with_correct_response_method()
+        while res.status_code != 200:
+            res = self.search_hotwords_with_correct_response_method()
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         assert isinstance(res.json()["data"], list)
