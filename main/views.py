@@ -1222,78 +1222,88 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
     '''
         resize a gif
     '''
-    resize_size = (int(width * float(ratio)), int(height * float(ratio)))
-    with Image.open(name) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        output_file = io.BytesIO()
-        frames[0].save(output_file, format='GIF', save_all=True, append_images=frames[1:], disposal=2)
+    try:
+        resize_size = (int(width * float(ratio)), int(height * float(ratio)))
+        with Image.open(name) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            output_file = io.BytesIO()
+            frames[0].save(output_file, format='GIF', save_all=True, append_images=frames[1:], disposal=2)
 
-    image = Image.open(output_file)
-    gif_fingerprint = imagehash.average_hash(image, hash_size=16)
-    fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
-    if fingerprint.gif_id != 0:
+        image = Image.open(output_file)
+        gif_fingerprint = imagehash.average_hash(image, hash_size=16)
+        fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
+        if fingerprint.gif_id != 0:
+            os.remove(name)
+            return_data = {
+                "id": fingerprint.gif_id,
+                "duplication": True
+            }
+            task = TaskInfo.objects.filter(id=task_id).first()
+            task.task_status = "SUCCESS"
+            task.task_result = return_data
+            task.save()
+            return return_data
+
+        gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
+        gif_file = GifFile.objects.create(metadata=gif)
+        gif_file.file.save(name, File(output_file))
+        gif_file.save()
+        fingerprint.gif_id = gif.id
+        fingerprint.save()
+
+        with Image.open(gif_file.file) as image:
+            durations = [image.info.get("duration")] * image.n_frames
+            if not durations[0]:
+                durations = [100] * image.n_frames
+            total_time = sum(durations) / 1000.0
+        width = gif_file.file.width
+        height = gif_file.file.height
+        path = gif_file.file.path
+        gif.duration = total_time
+        gif.width = width
+        gif.height = height
+        gif.name = name
+        gif.save()
+
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+        max_size = min(width, height, 150)
+        ratio = width / height
+        new_width = int(max_size * math.sqrt(ratio))
+        new_height = int(max_size / math.sqrt(ratio))
+        resize_size = (new_width, new_height)
+        with Image.open(path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
+
         os.remove(name)
+        upload_user = UserInfo.objects.filter(id=user).first()
+        if os.getenv('DEPLOY') is not None:
+            helpers.post_search_metadata(upload_user, gif)
+
         return_data = {
-            "id": fingerprint.gif_id,
-            "duplication": True
+            "id": gif.id,
+            "duplication": False
         }
         task = TaskInfo.objects.filter(id=task_id).first()
         task.task_status = "SUCCESS"
         task.task_result = return_data
         task.save()
         return return_data
-
-    gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
-    gif_file = GifFile.objects.create(metadata=gif)
-    gif_file.file.save(name, File(output_file))
-    gif_file.save()
-    fingerprint.gif_id = gif.id
-    fingerprint.save()
-
-    with Image.open(gif_file.file) as image:
-        durations = [image.info.get("duration")] * image.n_frames
-        if not durations[0]:
-            durations = [100] * image.n_frames
-        total_time = sum(durations) / 1000.0
-    width = gif_file.file.width
-    height = gif_file.file.height
-    path = gif_file.file.path
-    gif.duration = total_time
-    gif.width = width
-    gif.height = height
-    gif.name = name
-    gif.save()
-
-    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
-    max_size = min(width, height, 150)
-    ratio = width / height
-    new_width = int(max_size * math.sqrt(ratio))
-    new_height = int(max_size / math.sqrt(ratio))
-    resize_size = (new_width, new_height)
-    with Image.open(path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
-
-    os.remove(name)
-    upload_user = UserInfo.objects.filter(id=user).first()
-    if os.getenv('DEPLOY') is not None:
-        helpers.post_search_metadata(upload_user, gif)
-
-    return_data = {
-        "id": gif.id,
-        "duplication": False
-    }
-    task = TaskInfo.objects.filter(id=task_id).first()
-    task.task_status = "SUCCESS"
-    task.task_result = return_data
-    task.save()
-    return return_data
+    except Exception as error:
+        print(error)
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "FAILURE"
+        task.save()
+        return_data = {
+            "error": str(error)
+        }
+        return return_data
 
 @csrf_exempt
 @handle_errors
@@ -1792,75 +1802,85 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
     '''
         mp4/mkv -> gif
     '''
-    video = imageio.get_reader(hashed_name + ".mp4")
-    fps = video.get_meta_data()['fps']
-    gif_frames = []
-    for i, frame in enumerate(video):
-        height = frame.shape[0]
-        width = frame.shape[1]
-        if i % 3 == 0:
-            gif_frames.append(frame[:, :, :3])
-    imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps, loop=0)
+    try:
+        video = imageio.get_reader(hashed_name + ".mp4")
+        fps = video.get_meta_data()['fps']
+        gif_frames = []
+        for i, frame in enumerate(video):
+            height = frame.shape[0]
+            width = frame.shape[1]
+            if i % 3 == 0:
+                gif_frames.append(frame[:, :, :3])
+        imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps, loop=0)
 
-    path = hashed_name + ".gif"
-    new_path = "_" + hashed_name + ".gif"
-    max_size = min(width, height, 300)
-    ratio = width / height
-    new_width = int(max_size * math.sqrt(ratio))
-    new_height = int(max_size / math.sqrt(ratio))
-    resize_size = (new_width, new_height)
-    with Image.open(path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        frames[0].save(new_path, save_all=True, append_images=frames[1:], disposal=2)
+        path = hashed_name + ".gif"
+        new_path = "_" + hashed_name + ".gif"
+        max_size = min(width, height, 300)
+        ratio = width / height
+        new_width = int(max_size * math.sqrt(ratio))
+        new_height = int(max_size / math.sqrt(ratio))
+        resize_size = (new_width, new_height)
+        with Image.open(path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            frames[0].save(new_path, save_all=True, append_images=frames[1:], disposal=2)
 
-    gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
-    gif_file = GifFile.objects.create(metadata=gif, file=new_path)
+        gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
+        gif_file = GifFile.objects.create(metadata=gif, file=new_path)
 
-    with open(new_path, 'rb') as temp_gif:
-        gif_file.file.save(new_path, ContentFile(temp_gif.read()))
-    gif_file.save()
+        with open(new_path, 'rb') as temp_gif:
+            gif_file.file.save(new_path, ContentFile(temp_gif.read()))
+        gif_file.save()
 
-    with Image.open(gif_file.file) as image:
-        duration = image.info['duration'] * image.n_frames
-    gif.duration = duration / 1000.0
-    gif.width = gif_file.file.width
-    gif.height = gif_file.file.height
-    gif.name = gif_file.file.name
-    gif.save()
-    os.remove(hashed_name + ".mp4")
-    os.remove(path)
-    os.remove(new_path)
+        with Image.open(gif_file.file) as image:
+            duration = image.info['duration'] * image.n_frames
+        gif.duration = duration / 1000.0
+        gif.width = gif_file.file.width
+        gif.height = gif_file.file.height
+        gif.name = gif_file.file.name
+        gif.save()
+        os.remove(hashed_name + ".mp4")
+        os.remove(path)
+        os.remove(new_path)
 
-    path = gif_file.file.path
-    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
-    max_size = min(width, height, 150)
-    ratio = width / height
-    new_width = int(max_size * math.sqrt(ratio))
-    new_height = int(max_size / math.sqrt(ratio))
-    resize_size = (new_width, new_height)
-    with Image.open(path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
+        path = gif_file.file.path
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+        max_size = min(width, height, 150)
+        ratio = width / height
+        new_width = int(max_size * math.sqrt(ratio))
+        new_height = int(max_size / math.sqrt(ratio))
+        resize_size = (new_width, new_height)
+        with Image.open(path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
 
-    upload_user = UserInfo.objects.filter(id=user).first()
-    if os.getenv('DEPLOY') is not None:
-        helpers.post_search_metadata(upload_user, gif)
+        upload_user = UserInfo.objects.filter(id=user).first()
+        if os.getenv('DEPLOY') is not None:
+            helpers.post_search_metadata(upload_user, gif)
 
-    return_data = {
-        "id": gif.id,
-        "duplication": False
-    }
-    task = TaskInfo.objects.filter(id=task_id).first()
-    task.task_status = "SUCCESS"
-    task.task_result = return_data
-    task.save()
-    return return_data
+        return_data = {
+            "id": gif.id,
+            "duplication": False
+        }
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "SUCCESS"
+        task.task_result = return_data
+        task.save()
+        return return_data
+    except Exception as error:
+        print(error)
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "FAILURE"
+        task.save()
+        return_data = {
+            "error": str(error)
+        }
+        return return_data
 
 @csrf_exempt
 @handle_errors
@@ -1909,40 +1929,50 @@ def image_watermark_task(gif_id: int, user_name: str, task_id: int):
     '''
         add watermark to a gif in the database
     '''
-    gif = GifMetadata.objects.filter(id=gif_id).first()
-    text = '@' + user_name
-    font_path = "files/tests/Songti.ttf"
-    font_size = 16
-    with Image.open(gif.giffile.file.path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            watermark_image = Image.new('RGBA', frame.size, (255, 255, 255, 0))
-            draw = ImageDraw.Draw(watermark_image, 'RGBA')
-            font = ImageFont.truetype(font_path, font_size, encoding="unic")
-            text_width, text_height = draw.textsize(text=text, font=font)
-            x_axis = frame.width - text_width - 10
-            y_axis = frame.height - text_height - 10
-            if x_axis < 0 or y_axis < 0:
-                return_data = {
-                    "id": gif.id,
-                    "code": 20,
-                    "info": "GIF_TOO_SMALL",
-                }
-                task = TaskInfo.objects.filter(id=task_id).first()
-                task.task_status = "SUCCESS"
-                task.task_result = return_data
-                task.save()
-                return return_data
-            draw.text((x_axis, y_axis), text, font=font, fill=(0, 0, 0, 255))
-            frame = Image.alpha_composite(frame.convert('RGBA'), watermark_image)
-            frames.append(frame)
-        frames[0].save(gif.giffile.file.path, save_all=True, append_images=frames[1:], disposal=2)
-    return_data = {"id": gif.id}
-    task = TaskInfo.objects.filter(id=task_id).first()
-    task.task_status = "SUCCESS"
-    task.task_result = return_data
-    task.save()
-    return return_data
+    try:
+        gif = GifMetadata.objects.filter(id=gif_id).first()
+        text = '@' + user_name
+        font_path = "files/tests/Songti.ttf"
+        font_size = 16
+        with Image.open(gif.giffile.file.path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                watermark_image = Image.new('RGBA', frame.size, (255, 255, 255, 0))
+                draw = ImageDraw.Draw(watermark_image, 'RGBA')
+                font = ImageFont.truetype(font_path, font_size, encoding="unic")
+                text_width, text_height = draw.textsize(text=text, font=font)
+                x_axis = frame.width - text_width - 10
+                y_axis = frame.height - text_height - 10
+                if x_axis < 0 or y_axis < 0:
+                    return_data = {
+                        "id": gif.id,
+                        "code": 20,
+                        "info": "GIF_TOO_SMALL",
+                    }
+                    task = TaskInfo.objects.filter(id=task_id).first()
+                    task.task_status = "FAILURE"
+                    task.task_result = return_data
+                    task.save()
+                    return return_data
+                draw.text((x_axis, y_axis), text, font=font, fill=(0, 0, 0, 255))
+                frame = Image.alpha_composite(frame.convert('RGBA'), watermark_image)
+                frames.append(frame)
+            frames[0].save(gif.giffile.file.path, save_all=True, append_images=frames[1:], disposal=2)
+        return_data = {"id": gif.id}
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "SUCCESS"
+        task.task_result = return_data
+        task.save()
+        return return_data
+    except Exception as error:
+        print(error)
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "FAILURE"
+        task.save()
+        return_data = {
+            "error": str(error)
+        }
+        return return_data
 
 @csrf_exempt
 @handle_errors
