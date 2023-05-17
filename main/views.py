@@ -642,8 +642,45 @@ def user_get_followings(req: HttpRequest, user_id: any):
     return not_found_error()
 
 @csrf_exempt
+# @handle_errors
+def user_message_list(req: HttpRequest):
+    '''
+    request:
+        - User token is needed.
+    response:
+        - List of user messages
+    '''
+    if req.method == "GET":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+        user_name = token["user_name"]
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return unauthorized_error()
+        try:
+            page = int(req.GET.get("page"))
+        except (TypeError, ValueError) as error:
+            print(error)
+            return request_failed(6, "INVALID_PAGES", data={"data": {"error": str(error)}})
+        user_messages_list, pages = helpers.get_user_message_list(user, page - 1)
+        return_data = {
+            "data": {
+                "page_count": pages,
+                "page_data": user_messages_list
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
 @handle_errors
-def user_message(req: HttpRequest):
+def user_post_message(req: HttpRequest):
     '''
     request:
         {
@@ -695,7 +732,6 @@ def user_message(req: HttpRequest):
         except (TypeError, KeyError) as error:
             print(error)
             return format_error(str(error))
-
         if not (user_id and message and isinstance(user_id, int) and isinstance(message, str)):
             return format_error()
 
@@ -714,6 +750,17 @@ def user_message(req: HttpRequest):
             }
         }
         return request_success(data=return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_read_message(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - User token is needed.
+    response:
+        - User messages list
+    '''
     if req.method == "GET":
         try:
             encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
@@ -724,75 +771,40 @@ def user_message(req: HttpRequest):
             print(error)
             return unauthorized_error(str(error))
 
-        user_name = token["user_name"]
-        user = UserInfo.objects.filter(user_name=user_name).first()
-        if not user:
-            return unauthorized_error()
-        user_messages = Message.objects.filter(Q(receiver=user)|Q(sender=user)).order_by("-pub_time")
-        messages = {}
-        for message in user_messages:
-            other_user = message.sender if message.sender != user else message.receiver
-            if other_user.id not in messages:
-                messages[other_user.id] = {
-                    "is_read": True,
-                    "message": []
-                }
-            messages[other_user.id]["message"].append({
-                "sender": message.sender.id,
-                "receiver": message.receiver.id,
-                "message": message.message,
-                "pub_time": message.pub_time
-            })
-            if message.receiver == user and message.is_read is False:
-                messages[other_user.id]["is_read"] = False
-        return_data = {
-            "data": messages
-        }
-        return request_success(return_data)
-    return not_found_error()
-
-@csrf_exempt
-@handle_errors
-def user_read_message(req: HttpRequest, user_id: any):
-    '''
-    request:
-        User token is needed.
-    response:
-        {
-            "code": 0,
-            "info": "Succeed",
-            "data": {}
-        }
-    '''
-    if req.method == "POST":
         try:
-            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-            token = helpers.decode_token(encoded_token)
-            if not helpers.is_token_valid(token=encoded_token):
-                return unauthorized_error()
-        except DecodeError as error:
+            page = int(req.GET.get("page"))
+        except (TypeError, ValueError) as error:
             print(error)
-            return unauthorized_error(str(error))
+            return request_failed(6, "INVALID_PAGES", data={"data": {"error": str(error)}})
 
         user_name = token["user_name"]
         user = UserInfo.objects.filter(user_name=user_name).first()
         if not user:
             return unauthorized_error()
-
         if not isinstance(user_id, str) or not user_id.isdigit():
             return format_error()
-        user_id = int(user_id)
 
+        user_id = int(user_id)
         other_user = UserInfo.objects.filter(id=user_id).first()
         if not other_user:
             return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
         if other_user == user:
             return request_failed(22, "CANNOT_MESSAGE_SELF", data={"data": {}})
-        user_messages = Message.objects.filter(receiver=user, sender=other_user).order_by("-pub_time")
-        for message in user_messages:
-            message.is_read = True
-            message.save()
-        return request_success(data={"data": {}})
+
+        messages = Message.objects.filter(sender=other_user, receiver=user)
+        for single_message in messages:
+            single_message.is_read = True
+            single_message.save()
+
+        user_messages_list, pages = helpers.show_user_message_page(user, other_user, page - 1)
+        return_data = {
+            "data": {
+                "page_count": pages,
+                "page_data": user_messages_list
+            }
+        }
+        return request_success(return_data)
+
     return not_found_error()
 
 @csrf_exempt

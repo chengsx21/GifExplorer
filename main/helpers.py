@@ -11,10 +11,11 @@ from functools import wraps
 import magic
 from PIL import Image
 import jwt
+from django.db.models import Q
 from django.utils.crypto import get_random_string
 from utils.utils_request import internal_error
-from .config import MAX_GIFS_PER_PAGE, MAX_USERS_PER_PAGE, MAX_SEARCH_HISTORY, SECRET_KEY, SEARCH_ENGINE
-from .models import UserInfo, UserToken, GifMetadata, GifFingerprint
+from .config import MAX_GIFS_PER_PAGE, MAX_USERS_PER_PAGE, MAX_MESSAGES_PER_PAGE, MAX_SEARCH_HISTORY, SECRET_KEY, SEARCH_ENGINE
+from .models import UserInfo, UserToken, GifMetadata, GifFingerprint, Message
 
 def handle_errors(view_func):
     '''
@@ -419,3 +420,56 @@ def delete_user_search_history(user: UserInfo, search_content: str):
     if search_content in user.search_history:
         user.search_history.pop(search_content)
     user.save()
+
+def get_user_message_list(user: UserInfo, page: int):
+    '''
+        Get user message list
+    '''
+    user_messages = Message.objects.filter(Q(receiver=user)|Q(sender=user)).order_by("-pub_time")
+    if not user_messages:
+        return [], 0
+    user_list = []
+    messages_list = []
+    for message in user_messages:
+        other_user = message.sender if message.sender != user else message.receiver
+        if other_user.id not in user_list:
+            user_list.append(other_user.id)
+            single_message = {}
+            single_message["user"] = {
+                "id": other_user.id,
+                "user_name": other_user.user_name,
+                "avatar": other_user.avatar,
+                "signature": other_user.signature
+            }
+            last_message = Message.objects.filter(receiver=user, sender=other_user).order_by("-pub_time").first()
+            is_read = True
+            if last_message and not last_message.is_read:
+                is_read = False
+            single_message["message"] = {
+                "message": message.message,
+                "pub_time": message.pub_time,
+                "is_read": is_read
+            }
+            messages_list.append(single_message)
+    begin = page * MAX_USERS_PER_PAGE
+    end = (page + 1) * MAX_USERS_PER_PAGE
+    return messages_list[begin:end], math.ceil(len(messages_list) / MAX_USERS_PER_PAGE)
+
+def show_user_message_page(user: UserInfo, other_user: UserInfo, page: int):
+    '''
+        Show user message page
+    '''
+    user_messages = Message.objects.filter(Q(receiver=user, sender=other_user)|Q(sender=user, receiver=other_user)).order_by("-pub_time")
+    if not user_messages:
+        return [], 0
+    begin = page * MAX_MESSAGES_PER_PAGE
+    end = (page + 1) * MAX_MESSAGES_PER_PAGE
+    messages_list = []
+    for single_message in user_messages[begin:end]:
+        messages_list.append({
+            "sender": single_message.sender.id,
+            "receiver": single_message.receiver.id,
+            "message": single_message.message,
+            "pub_time": single_message.pub_time
+        })
+    return messages_list, math.ceil(len(user_messages) / MAX_MESSAGES_PER_PAGE)
