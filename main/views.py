@@ -2016,8 +2016,20 @@ def image_task_check(req: HttpRequest):
         task_ids = user.task_history
         user_task_list = []
 
+        task_ids = dict(sorted(list(task_ids.items()), key=lambda x: x[1], reverse=True))
         for task_id, _ in task_ids.items():
             task = TaskInfo.objects.filter(task_id=task_id).first()
+            if task.task_status == "STARTED":
+                created_at = task.task_time.timestamp()
+                current_time = datetime.datetime.now().timestamp()
+                if current_time - created_at >= config.TASK_HANDLING_MAX_TIME:
+                    return_data = {
+                        "code": 23,
+                        "info": "TOO_LONG_TIME"
+                    }
+                    task.task_status = "FAILURE"
+                    task.task_result = return_data
+                    task.save()
             data = {
                 "task_id": task.task_id,
                 "task_type": task.task_type,
