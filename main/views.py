@@ -1129,6 +1129,9 @@ def image_update_metadata(req, gif_id):
         gif.tags = tags
         gif.save()
 
+        if os.getenv('DEPLOY') is not None:
+            helpers.post_search_metadata(user, gif)
+
         return_data = {
             "data": {
                 "id": gif.id
