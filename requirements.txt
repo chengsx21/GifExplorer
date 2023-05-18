@@ -16,3 +16,4 @@ coverage
 pyJWT
 uWSGI
 Pillow
+synonyms==3.18.0
