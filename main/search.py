@@ -239,14 +239,16 @@ class ElasticSearchEngine():
         # tags provided by user should be the subset of real gif tags
         tags = request["tags"]
         if tags:
-            must_array.append({"terms_set": {
-                "tags": {
-                    "terms": tags,
-                    "minimum_should_match_script": {
-                        "source": str(len(tags))
+            must_array.append({
+                "terms_set": {
+                    "tags": {
+                        "terms": tags,
+                        "minimum_should_match_script": {
+                            "source": str(len(tags))
+                        }
                     }
                 }
-            }})
+            })
 
         body["query"]["bool"]["must"] = must_array
         self.client.index(index="message_index", body={"message": search_text})
@@ -254,21 +256,11 @@ class ElasticSearchEngine():
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
-    # [related match]
-
-    # def search_related(self, keyword, target):
-
-    #     if target == "title":
-    #         body = {
-    #             "query": {
-    #                 "match": {
-    #                     "title": {
-    #                         "query": keyword,
-    #                         "operator": "or"
-    #                     }
-    #                 }
-    #             }
-    #         }
+    def search_related(self, request):
+        '''
+        [related match]
+        '''
+        return []
 
     def search_fuzzy(self, request):
         '''
