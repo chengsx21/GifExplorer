@@ -3,11 +3,17 @@ Filename: main.py
 Author: lutianyu
 Contact: luty21@mails.tsinghua.edu.cn
 """
+import synonyms
+import pycorrector
 import json
 from elasticsearch import Elasticsearch
-# from .search_helpers import get_synonyms
-
-import synonyms
+from .helpers import is_chinese
+# import re
+# def is_chinese(char: str):
+#     '''
+#         Test if char is chinese
+#     '''
+#     return re.match(".*[\u3400-\u4DB5\u4E00-\u9FCB\uF900-\uFA6A].*", char)
 
 
 def get_synonyms(sentence):
@@ -645,6 +651,15 @@ class ElasticSearchEngine():
             body=json.dumps(data)
         )
         return response
+
+    def correct(self, input):
+        if is_chinese(input):
+            corrected_sent, detail = pycorrector.correct(input)
+        else:
+            corrected_sent, detail = pycorrector.en_correct(input)
+        # print(corrected_sent)
+        return corrected_sent
+
 # end ElasticSearchEngine
 
 
