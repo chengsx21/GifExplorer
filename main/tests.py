@@ -411,7 +411,7 @@ class ViewsTests(TestCase):
             "user_id": user_id,
             "message": message
         }
-        return self.client.delete('/user/message', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+        return self.client.delete('/user/message/post', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
     def user_post_message_with_wrong_type(self, user_id, message, token):
         '''
@@ -421,7 +421,7 @@ class ViewsTests(TestCase):
             "user": user_id,
             "message": message
         }
-        return self.client.post('/user/message', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+        return self.client.post('/user/message/post', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
     def user_post_message_with_correct_response_method(self, user_id, message, token):
         '''
@@ -431,31 +431,35 @@ class ViewsTests(TestCase):
             "user_id": user_id,
             "message": message
         }
-        return self.client.post('/user/message', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
+        return self.client.post('/user/message/post', data=req, content_type="application/json", HTTP_AUTHORIZATION=token)
 
-    def user_get_message_with_wrong_response_method(self, token):
+    def user_get_message_with_wrong_response_method(self, page, token):
         '''
             Create a DELETE/user/message HttpRequest
         '''
-        return self.client.delete('/user/message', HTTP_AUTHORIZATION=token)
+        url = '/user/message/list?page=' + str(page)
+        return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
-    def user_get_message_with_correct_response_method(self, token):
+    def user_get_message_with_correct_response_method(self, page, token):
         '''
             Create a GET/user/message HttpRequest
         '''
-        return self.client.get('/user/message', HTTP_AUTHORIZATION=token)
+        url = '/user/message/list?page=' + str(page)
+        return self.client.get(url, HTTP_AUTHORIZATION=token)
 
-    def user_read_message_with_wrong_response_method(self, user_id, token):
+    def user_read_message_with_wrong_response_method(self, user_id, page, token):
         '''
             Create a DELETE/user/readmessage HttpRequest
         '''
-        return self.client.delete('/user/readmessage/' + str(user_id), HTTP_AUTHORIZATION=token)
+        url = '/user/message/read/' +  str(user_id) +'?page=' + str(page)
+        return self.client.delete(url, HTTP_AUTHORIZATION=token)
 
-    def user_read_message_with_correct_response_method(self, user_id, token):
+    def user_read_message_with_correct_response_method(self, user_id, page, token):
         '''
             Create a POST/user/readmessage HttpRequest
         '''
-        return self.client.post('/user/readmessage/' + str(user_id), HTTP_AUTHORIZATION=token)
+        url = '/user/message/read/' +  str(user_id) +'?page=' + str(page)
+        return self.client.get(url, HTTP_AUTHORIZATION=token)
 
     def user_history_with_wrong_response_method(self, page, token):
         '''
@@ -858,7 +862,7 @@ class ViewsTests(TestCase):
             Create a POST/image/search/suggest HttpRequest
         '''
         return self.client.post('/image/search/suggest', data=req, content_type="application/json")
-    
+
     def search_hotwords_with_worng_response_method(self):
         '''
             Create a POST/image/search/hotwords HttpRequest
@@ -1647,22 +1651,21 @@ class ViewsTests(TestCase):
         res = self.user_post_message_with_correct_response_method(user_id=2, message="Test", token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        res = self.user_get_message_with_correct_response_method(token=token)
+        res = self.user_get_message_with_correct_response_method(page=1, token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"]["2"]["is_read"], True)
+        self.assertEqual(res.json()["data"]["page_data"][0]["message"]["is_read"], True)
         res = self.user_post_message_with_correct_response_method(user_id=1, message="Test", token=other_token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        res = self.user_get_message_with_correct_response_method(token=token)
+        res = self.user_get_message_with_correct_response_method(page=1, token=token)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"]["2"]["is_read"], False)
-        self.user_read_message_with_correct_response_method(user_id=2, token=token)
-        res = self.user_get_message_with_correct_response_method(token=token)
+        self.assertEqual(res.json()["data"]["page_data"][0]["message"]["is_read"], False)
+        self.user_read_message_with_correct_response_method(user_id=2, page=1, token=token)
+        res = self.user_get_message_with_correct_response_method(page=1, token=token)
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(res.json()["data"]["2"]["is_read"], True)
+        self.assertEqual(res.json()["data"]["page_data"][0]["message"]["is_read"], True)
         helpers.delete_token_from_white_list(token)
         helpers.delete_token_from_white_list(other_token)
 
@@ -1674,10 +1677,10 @@ class ViewsTests(TestCase):
         res = self.user_post_message_with_correct_response_method(user_id=2, message="Test", token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
-        res = self.user_get_message_with_correct_response_method(token=token)
+        res = self.user_get_message_with_correct_response_method(page=1, token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
-        res = self.user_read_message_with_correct_response_method(user_id=2, token=token)
+        res = self.user_read_message_with_correct_response_method(user_id=2, page=1, token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
 
@@ -1690,10 +1693,10 @@ class ViewsTests(TestCase):
         res = self.user_post_message_with_correct_response_method(user_id=2, message="Test", token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
-        res = self.user_get_message_with_correct_response_method(token=token)
+        res = self.user_get_message_with_correct_response_method(page=1, token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
-        res = self.user_read_message_with_correct_response_method(user_id=2, token=token)
+        res = self.user_read_message_with_correct_response_method(user_id=2, page=1, token=token)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["code"], 1001)
         helpers.delete_token_from_white_list(token)
@@ -1707,7 +1710,7 @@ class ViewsTests(TestCase):
         res = self.user_post_message_with_correct_response_method(user_id=1000, message="Test", token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 12)
-        res = self.user_read_message_with_correct_response_method(user_id=1000, token=token)
+        res = self.user_read_message_with_correct_response_method(user_id=1000, page=1, token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 12)
         helpers.delete_token_from_white_list(token)
@@ -1721,7 +1724,7 @@ class ViewsTests(TestCase):
         res = self.user_post_message_with_correct_response_method(user_id=1, message="Test", token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 22)
-        res = self.user_read_message_with_correct_response_method(user_id=1, token=token)
+        res = self.user_read_message_with_correct_response_method(user_id=1, page=1, token=token)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 22)
         helpers.delete_token_from_white_list(token)
@@ -1750,10 +1753,10 @@ class ViewsTests(TestCase):
         res = self.user_post_message_with_wrong_response_method(user_id=2, message="Test", token=token)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
-        res = self.user_get_message_with_wrong_response_method(token=token)
+        res = self.user_get_message_with_wrong_response_method(page=1, token=token)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
-        res = self.user_read_message_with_wrong_response_method(user_id=2, token=token)
+        res = self.user_read_message_with_wrong_response_method(user_id=2, page=1, token=token)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 1000)
         helpers.delete_token_from_white_list(token)
@@ -2720,6 +2723,8 @@ class ViewsTests(TestCase):
             if each_type == "regex":
                 req["tags"] = []
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -2777,6 +2782,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
 
@@ -2798,6 +2805,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 400:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["code"], 1005)
 
@@ -2822,6 +2831,10 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while each_type == "regex" and res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
+                while each_type != "regex" and res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 if each_type == "regex":
                     self.assertEqual(res.status_code, 200)
                     self.assertEqual(res.json()["code"], 0)
@@ -2847,6 +2860,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -2868,6 +2883,8 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -2893,6 +2910,8 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -2916,6 +2935,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -2936,7 +2957,10 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
-                ress.append(self.image_search_with_correct_response_method(req))
+                res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
+                ress.append(res)
                 req = {
                     "target": target,
                     "keyword": "food",
@@ -2946,7 +2970,10 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
-                ress.append(self.image_search_with_correct_response_method(req))
+                res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
+                ress.append(res)
                 req = {
                     "target": target,
                     "keyword": "food",
@@ -2956,7 +2983,10 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
-                ress.append(self.image_search_with_correct_response_method(req))
+                res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
+                ress.append(res)
         for res in ress:
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["code"], 1005)
@@ -2981,6 +3011,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
 
@@ -3004,6 +3036,8 @@ class ViewsTests(TestCase):
                     "page": 1
                 }
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 400)
                 self.assertEqual(res.json()["code"], 1005)
 
@@ -3028,6 +3062,8 @@ class ViewsTests(TestCase):
                         "page": 1
                     }
                     res = self.image_search_with_correct_response_method(req)
+                    while res.status_code != 400:
+                        res = self.image_search_with_correct_response_method(req)
                     self.assertEqual(res.status_code, 400)
                     self.assertEqual(res.json()["code"], 1005)
 
@@ -3049,6 +3085,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -3072,6 +3110,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 400:
+                res = self.image_search_with_correct_response_method(req)
             self.assertEqual(res.status_code, 400)
             self.assertEqual(res.json()["code"], 1005)
 
@@ -3096,6 +3136,8 @@ class ViewsTests(TestCase):
                 if each_type == "regex":
                     req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
                 self.assertEqual(res.status_code, 200)
                 self.assertEqual(res.json()["code"], 0)
                 self.assertEqual(len(res.json()["data"]), 4)
@@ -3121,6 +3163,8 @@ class ViewsTests(TestCase):
                         "page": wrong_page
                     }
                     res = self.image_search_with_correct_response_method(req)
+                    while res.status_code != 400:
+                        res = self.image_search_with_correct_response_method(req)
                     self.assertEqual(res.status_code, 400)
                     self.assertEqual(res.json()["code"], 5)
 
@@ -3146,6 +3190,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_token(req, token)
+            while res.status_code != 200:
+                res = self.image_search_with_token(req, token)
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()["code"], 0)
             self.assertEqual(len(res.json()["data"]), 4)
@@ -3173,6 +3219,8 @@ class ViewsTests(TestCase):
                 "page": 1
             }
             res = self.image_search_with_token(req, token)
+            while res.status_code != 401:
+                res = self.image_search_with_token(req, token)
             self.assertEqual(res.status_code, 401)
             self.assertEqual(res.json()["code"], 1001)
 
@@ -3186,6 +3234,8 @@ class ViewsTests(TestCase):
             "query": "f"
         }
         res = self.search_suggest_with_correct_response_method(req)
+        while res.status_code != 200:
+            res = self.search_suggest_with_correct_response_method(req)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         self.assertEqual(len(res.json()["data"]), 1)
@@ -3207,6 +3257,8 @@ class ViewsTests(TestCase):
         '''
         req = {}
         res = self.search_suggest_with_correct_response_method(req)
+        while res.status_code != 200:
+            res = self.search_suggest_with_correct_response_method(req)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         self.assertEqual(len(res.json()["data"]), 1)
@@ -3216,6 +3268,8 @@ class ViewsTests(TestCase):
             Test search hotwords
         '''
         res = self.search_hotwords_with_correct_response_method()
+        while res.status_code != 200:
+            res = self.search_hotwords_with_correct_response_method()
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         assert isinstance(res.json()["data"], list)

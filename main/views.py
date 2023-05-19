@@ -17,7 +17,6 @@ import imagehash
 from jwt import DecodeError
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 from celery import shared_task
-from celery.result import AsyncResult
 from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -31,7 +30,7 @@ from GifExplorer import settings
 from . import helpers
 from .helpers import handle_errors
 from . import config
-from .models import UserInfo, UserVerification, GifMetadata, GifFile, GifComment, Message, GifShare
+from .models import UserInfo, UserVerification, GifMetadata, GifFile, GifComment, Message, GifShare, TaskInfo
 
 # Create your views here.
 @csrf_exempt
@@ -644,7 +643,44 @@ def user_get_followings(req: HttpRequest, user_id: any):
 
 @csrf_exempt
 @handle_errors
-def user_message(req: HttpRequest):
+def user_message_list(req: HttpRequest):
+    '''
+    request:
+        - User token is needed.
+    response:
+        - List of user messages
+    '''
+    if req.method == "GET":
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+        user_name = token["user_name"]
+        user = UserInfo.objects.filter(user_name=user_name).first()
+        if not user:
+            return unauthorized_error()
+        try:
+            page = int(req.GET.get("page"))
+        except (TypeError, ValueError) as error:
+            print(error)
+            return request_failed(6, "INVALID_PAGES", data={"data": {"error": str(error)}})
+        user_messages_list, pages = helpers.get_user_message_list(user, page - 1)
+        return_data = {
+            "data": {
+                "page_count": pages,
+                "page_data": user_messages_list
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_post_message(req: HttpRequest):
     '''
     request:
         {
@@ -696,7 +732,6 @@ def user_message(req: HttpRequest):
         except (TypeError, KeyError) as error:
             print(error)
             return format_error(str(error))
-
         if not (user_id and message and isinstance(user_id, int) and isinstance(message, str)):
             return format_error()
 
@@ -715,6 +750,17 @@ def user_message(req: HttpRequest):
             }
         }
         return request_success(data=return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
+def user_read_message(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - User token is needed.
+    response:
+        - User messages list
+    '''
     if req.method == "GET":
         try:
             encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
@@ -725,75 +771,40 @@ def user_message(req: HttpRequest):
             print(error)
             return unauthorized_error(str(error))
 
-        user_name = token["user_name"]
-        user = UserInfo.objects.filter(user_name=user_name).first()
-        if not user:
-            return unauthorized_error()
-        user_messages = Message.objects.filter(Q(receiver=user)|Q(sender=user)).order_by("-pub_time")
-        messages = {}
-        for message in user_messages:
-            other_user = message.sender if message.sender != user else message.receiver
-            if other_user.id not in messages:
-                messages[other_user.id] = {
-                    "is_read": True,
-                    "message": []
-                }
-            messages[other_user.id]["message"].append({
-                "sender": message.sender.id,
-                "receiver": message.receiver.id,
-                "message": message.message,
-                "pub_time": message.pub_time
-            })
-            if message.receiver == user and message.is_read is False:
-                messages[other_user.id]["is_read"] = False
-        return_data = {
-            "data": messages
-        }
-        return request_success(return_data)
-    return not_found_error()
-
-@csrf_exempt
-@handle_errors
-def user_read_message(req: HttpRequest, user_id: any):
-    '''
-    request:
-        User token is needed.
-    response:
-        {
-            "code": 0,
-            "info": "Succeed",
-            "data": {}
-        }
-    '''
-    if req.method == "POST":
         try:
-            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-            token = helpers.decode_token(encoded_token)
-            if not helpers.is_token_valid(token=encoded_token):
-                return unauthorized_error()
-        except DecodeError as error:
+            page = int(req.GET.get("page"))
+        except (TypeError, ValueError) as error:
             print(error)
-            return unauthorized_error(str(error))
+            return request_failed(6, "INVALID_PAGES", data={"data": {"error": str(error)}})
 
         user_name = token["user_name"]
         user = UserInfo.objects.filter(user_name=user_name).first()
         if not user:
             return unauthorized_error()
-
         if not isinstance(user_id, str) or not user_id.isdigit():
             return format_error()
-        user_id = int(user_id)
 
+        user_id = int(user_id)
         other_user = UserInfo.objects.filter(id=user_id).first()
         if not other_user:
             return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
         if other_user == user:
             return request_failed(22, "CANNOT_MESSAGE_SELF", data={"data": {}})
-        user_messages = Message.objects.filter(receiver=user, sender=other_user).order_by("-pub_time")
-        for message in user_messages:
-            message.is_read = True
-            message.save()
-        return request_success(data={"data": {}})
+
+        messages = Message.objects.filter(sender=other_user, receiver=user)
+        for single_message in messages:
+            single_message.is_read = True
+            single_message.save()
+
+        user_messages_list, pages = helpers.show_user_message_page(user, other_user, page - 1)
+        return_data = {
+            "data": {
+                "page_count": pages,
+                "page_data": user_messages_list
+            }
+        }
+        return request_success(return_data)
+
     return not_found_error()
 
 @csrf_exempt
@@ -1118,6 +1129,9 @@ def image_update_metadata(req, gif_id):
         gif.tags = tags
         gif.save()
 
+        if os.getenv('DEPLOY') is not None:
+            helpers.post_search_metadata(user, gif)
+
         return_data = {
             "data": {
                 "id": gif.id
@@ -1189,7 +1203,14 @@ def image_upload_resize(req: HttpRequest):
         with open(name, 'wb') as temp_gif:
             for chunk in file.chunks():
                 temp_gif.write(chunk)
-        task = image_upload_resize_task.delay(title=title, category=category, tags=tags, user=user.id, name=name, ratio=ratio, width=width, height=height)
+        task_info = TaskInfo.objects.create(task_type="resize", task_status="STARTED")
+        task = image_upload_resize_task.delay(title=title, category=category, tags=tags, user=user.id, name=name, ratio=ratio, width=width, height=height, task_id=task_info.id)
+        if not user.task_history:
+            user.task_history = {}
+        user.task_history[str(task.id)] = str(datetime.datetime.now())
+        user.save()
+        task_info.task_id = task.id
+        task_info.save()
         return_data = {
             "data": {
                 "task_id": task.id,
@@ -1200,114 +1221,92 @@ def image_upload_resize(req: HttpRequest):
     return not_found_error()
 
 @shared_task
-def image_upload_resize_task(*, title: str, category: str, tags: list, user: int, name: str, ratio: float, width: int, height: int):
+def image_upload_resize_task(*, title: str, category: str, tags: list, user: int, name: str, ratio: float, width: int, height: int, task_id: int):
     '''
         resize a gif
     '''
-    resize_size = (int(width * float(ratio)), int(height * float(ratio)))
-    with Image.open(name) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        output_file = io.BytesIO()
-        frames[0].save(output_file, format='GIF', save_all=True, append_images=frames[1:], disposal=2)
+    try:
+        resize_size = (int(width * float(ratio)), int(height * float(ratio)))
+        with Image.open(name) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            output_file = io.BytesIO()
+            frames[0].save(output_file, format='GIF', save_all=True, append_images=frames[1:], disposal=2)
 
-    image = Image.open(output_file)
-    gif_fingerprint = imagehash.average_hash(image, hash_size=16)
-    fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
-    if fingerprint.gif_id != 0:
+        image = Image.open(output_file)
+        gif_fingerprint = imagehash.average_hash(image, hash_size=16)
+        fingerprint = helpers.add_gif_fingerprint_to_list(gif_fingerprint)
+        if fingerprint.gif_id != 0:
+            os.remove(name)
+            return_data = {
+                "id": fingerprint.gif_id,
+                "duplication": True
+            }
+            task = TaskInfo.objects.filter(id=task_id).first()
+            task.task_status = "SUCCESS"
+            task.task_result = return_data
+            task.save()
+            return return_data
+
+        gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
+        gif_file = GifFile.objects.create(metadata=gif)
+        gif_file.file.save(name, File(output_file))
+        gif_file.save()
+        fingerprint.gif_id = gif.id
+        fingerprint.save()
+
+        with Image.open(gif_file.file) as image:
+            durations = [image.info.get("duration")] * image.n_frames
+            if not durations[0]:
+                durations = [100] * image.n_frames
+            total_time = sum(durations) / 1000.0
+        width = gif_file.file.width
+        height = gif_file.file.height
+        path = gif_file.file.path
+        gif.duration = total_time
+        gif.width = width
+        gif.height = height
+        gif.name = name
+        gif.save()
+
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+        max_size = min(width, height, 150)
+        ratio = width / height
+        new_width = int(max_size * math.sqrt(ratio))
+        new_height = int(max_size / math.sqrt(ratio))
+        resize_size = (new_width, new_height)
+        with Image.open(path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
+
+        os.remove(name)
+        upload_user = UserInfo.objects.filter(id=user).first()
+        if os.getenv('DEPLOY') is not None:
+            helpers.post_search_metadata(upload_user, gif)
+
         return_data = {
-            "id": fingerprint.gif_id,
-            "duplication": True
+            "id": gif.id,
+            "duplication": False
+        }
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "SUCCESS"
+        task.task_result = return_data
+        task.save()
+        return return_data
+    except Exception as error:
+        print(error)
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "FAILURE"
+        task.save()
+        return_data = {
+            "error": str(error)
         }
         return return_data
-
-    gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
-    gif_file = GifFile.objects.create(metadata=gif)
-    gif_file.file.save(name, File(output_file))
-    gif_file.save()
-    fingerprint.gif_id = gif.id
-    fingerprint.save()
-
-    with Image.open(gif_file.file) as image:
-        durations = [image.info.get("duration")] * image.n_frames
-        if not durations[0]:
-            durations = [100] * image.n_frames
-        total_time = sum(durations) / 1000.0
-    width = gif_file.file.width
-    height = gif_file.file.height
-    path = gif_file.file.path
-    gif.duration = total_time
-    gif.width = width
-    gif.height = height
-    gif.name = name
-    gif.save()
-
-    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
-    max_size = min(width, height, 150)
-    ratio = width / height
-    new_width = int(max_size * math.sqrt(ratio))
-    new_height = int(max_size / math.sqrt(ratio))
-    resize_size = (new_width, new_height)
-    with Image.open(path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
-
-    os.remove(name)
-    upload_user = UserInfo.objects.filter(id=user).first()
-    if os.getenv('DEPLOY') is not None:
-        helpers.post_search_metadata(upload_user, gif)
-
-    return_data = {
-        "id": gif.id,
-        "duplication": False
-    }
-    return return_data
-
-@csrf_exempt
-@handle_errors
-def image_upload_resize_check(req: HttpRequest, task_id):
-    '''
-    request:
-        None
-    response:
-        {
-            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
-            "task_status": "PENDING"
-        }
-        {
-            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
-            "task_status": "STARTED"
-        }
-        {
-            "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
-            "task_status": "SUCCESS",
-            "task_result": {
-                "id": 1,
-                "width": 640,
-                "height": 480,
-                "duration": 5.2,
-                "uploader": 3, 
-                "pub_time": "2023-03-21T19:02:16.305Z"
-            }
-        }
-    '''
-    if req.method == "GET":
-        task_result = AsyncResult(task_id)
-        return_data = {
-            "data": {
-                "task_id": task_id,
-                "task_status": task_result.status
-            }
-        }
-        if task_result.status == 'SUCCESS':
-            return_data["data"]['task_result'] = task_result.result
-        return request_success(return_data)
-    return not_found_error()
 
 @csrf_exempt
 @handle_errors
@@ -1784,8 +1783,14 @@ def image_upload_video(req: HttpRequest):
         with open(hashed_name + ".mp4", 'wb') as temp_video:
             for chunk in video_file.chunks():
                 temp_video.write(chunk)
-
-        task = image_upload_video_task.delay(title=title, category=category, tags=tags, user=user.id, hashed_name=hashed_name)
+        task_info = TaskInfo.objects.create(task_type="video", task_status="STARTED")
+        task = image_upload_video_task.delay(title=title, category=category, tags=tags, user=user.id, hashed_name=hashed_name, task_id=task_info.id)
+        if not user.task_history:
+            user.task_history = {}
+        user.task_history[str(task.id)] = str(datetime.datetime.now())
+        user.save()
+        task_info.task_id = task.id
+        task_info.save()
         return_data = {
             "data": {
                 "task_id": task.id,
@@ -1796,121 +1801,89 @@ def image_upload_video(req: HttpRequest):
     return not_found_error()
 
 @shared_task
-def image_upload_video_task(*, title: str, category: str, tags: list, user: int, hashed_name: str):
+def image_upload_video_task(*, title: str, category: str, tags: list, user: int, hashed_name: str, task_id: int):
     '''
         mp4/mkv -> gif
     '''
-    video = imageio.get_reader(hashed_name + ".mp4")
-    fps = video.get_meta_data()['fps']
-    gif_frames = []
-    for i, frame in enumerate(video):
-        height = frame.shape[0]
-        width = frame.shape[1]
-        if i % 3 == 0:
-            gif_frames.append(frame[:, :, :3])
-    imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps, loop=0)
+    try:
+        video = imageio.get_reader(hashed_name + ".mp4")
+        fps = video.get_meta_data()['fps']
+        gif_frames = []
+        for i, frame in enumerate(video):
+            height = frame.shape[0]
+            width = frame.shape[1]
+            if i % 3 == 0:
+                gif_frames.append(frame[:, :, :3])
+        imageio.mimsave(hashed_name + ".gif", gif_frames, duration=1000/fps, loop=0)
 
-    path = hashed_name + ".gif"
-    new_path = "_" + hashed_name + ".gif"
-    max_size = min(width, height, 300)
-    ratio = width / height
-    new_width = int(max_size * math.sqrt(ratio))
-    new_height = int(max_size / math.sqrt(ratio))
-    resize_size = (new_width, new_height)
-    with Image.open(path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        frames[0].save(new_path, save_all=True, append_images=frames[1:], disposal=2)
+        path = hashed_name + ".gif"
+        new_path = "_" + hashed_name + ".gif"
+        max_size = min(width, height, 300)
+        ratio = width / height
+        new_width = int(max_size * math.sqrt(ratio))
+        new_height = int(max_size / math.sqrt(ratio))
+        resize_size = (new_width, new_height)
+        with Image.open(path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            frames[0].save(new_path, save_all=True, append_images=frames[1:], disposal=2)
 
-    gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
-    gif_file = GifFile.objects.create(metadata=gif, file=new_path)
+        gif = GifMetadata.objects.create(title=title, uploader=user, category=category, tags=tags)
+        gif_file = GifFile.objects.create(metadata=gif, file=new_path)
 
-    with open(new_path, 'rb') as temp_gif:
-        gif_file.file.save(new_path, ContentFile(temp_gif.read()))
-    gif_file.save()
+        with open(new_path, 'rb') as temp_gif:
+            gif_file.file.save(new_path, ContentFile(temp_gif.read()))
+        gif_file.save()
 
-    with Image.open(gif_file.file) as image:
-        duration = image.info['duration'] * image.n_frames
-    gif.duration = duration / 1000.0
-    gif.width = gif_file.file.width
-    gif.height = gif_file.file.height
-    gif.name = gif_file.file.name
-    gif.save()
-    os.remove(hashed_name + ".mp4")
-    os.remove(path)
-    os.remove(new_path)
+        with Image.open(gif_file.file) as image:
+            duration = image.info['duration'] * image.n_frames
+        gif.duration = duration / 1000.0
+        gif.width = gif_file.file.width
+        gif.height = gif_file.file.height
+        gif.name = gif_file.file.name
+        gif.save()
+        os.remove(hashed_name + ".mp4")
+        os.remove(path)
+        os.remove(new_path)
 
-    path = gif_file.file.path
-    resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
-    max_size = min(width, height, 150)
-    ratio = width / height
-    new_width = int(max_size * math.sqrt(ratio))
-    new_height = int(max_size / math.sqrt(ratio))
-    resize_size = (new_width, new_height)
-    with Image.open(path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
-            frames.append(resized_frame)
-        frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
+        path = gif_file.file.path
+        resize_path = path.rsplit("/", 1)[0] + "/resize_" + path.rsplit("/", 1)[1]
+        max_size = min(width, height, 150)
+        ratio = width / height
+        new_width = int(max_size * math.sqrt(ratio))
+        new_height = int(max_size / math.sqrt(ratio))
+        resize_size = (new_width, new_height)
+        with Image.open(path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                resized_frame = frame.resize(resize_size, Image.ANTIALIAS)
+                frames.append(resized_frame)
+            frames[0].save(resize_path, save_all=True, append_images=frames[1:], disposal=2)
 
-    upload_user = UserInfo.objects.filter(id=user).first()
-    if os.getenv('DEPLOY') is not None:
-        helpers.post_search_metadata(upload_user, gif)
+        upload_user = UserInfo.objects.filter(id=user).first()
+        if os.getenv('DEPLOY') is not None:
+            helpers.post_search_metadata(upload_user, gif)
 
-    return_data = {
-        "id": gif.id,
-        "width": gif.width,
-        "height": gif.height,
-        "duration": gif.duration,
-        "uploader": user,
-        "pub_time": gif.pub_time
-    }
-    return return_data
-
-@csrf_exempt
-@handle_errors
-def image_upload_video_check(req: HttpRequest, task_id):
-    '''
-    request:
-        None
-    response:
-        {
-            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
-            "task_status": "PENDING"
-        }
-        {
-            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
-            "task_status": "STARTED"
-        }
-        {
-            "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
-            "task_status": "SUCCESS",
-            "task_result": {
-                "id": 6,
-                "width": 1280,
-                "height": 720,
-                "duration": 5.2,
-                "uploader": 1,
-                "pub_time": "2023-04-24T01:22:07.326363Z"
-            }
-        }
-    '''
-    if req.method == "GET":
-        task_result = AsyncResult(task_id)
         return_data = {
-            "data": {
-                "task_id": task_id,
-                "task_status": task_result.status
-            }
+            "id": gif.id,
+            "duplication": False
         }
-        if task_result.status == 'SUCCESS':
-            return_data["data"]['task_result'] = task_result.result
-
-        return request_success(return_data)
-    return not_found_error()
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "SUCCESS"
+        task.task_result = return_data
+        task.save()
+        return return_data
+    except Exception as error:
+        print(error)
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "FAILURE"
+        task.save()
+        return_data = {
+            "error": str(error)
+        }
+        return return_data
 
 @csrf_exempt
 @handle_errors
@@ -1937,7 +1910,14 @@ def image_watermark(req: HttpRequest, gif_id: any):
         if not user or user.id != gif.uploader:
             return unauthorized_error()
 
-        task = image_watermark_task.delay(gif_id=gif_id, user_name=user.user_name)
+        task_info = TaskInfo.objects.create(task_type="watermark", task_status="STARTED")
+        task = image_watermark_task.delay(gif_id=gif_id, user_name=user.user_name, task_id=task_info.id)
+        if not user.task_history:
+            user.task_history = {}
+        user.task_history[str(task.id)] = str(datetime.datetime.now())
+        user.save()
+        task_info.task_id = task.id
+        task_info.save()
         return_data = {
             "data": {
                 "task_id": task.id,
@@ -1948,72 +1928,127 @@ def image_watermark(req: HttpRequest, gif_id: any):
     return not_found_error()
 
 @shared_task
-def image_watermark_task(gif_id, user_name):
+def image_watermark_task(gif_id: int, user_name: str, task_id: int):
     '''
         add watermark to a gif in the database
     '''
-    gif = GifMetadata.objects.filter(id=gif_id).first()
-    text = '@' + user_name
-    font_path = "files/tests/Songti.ttf"
-    font_size = 16
-    with Image.open(gif.giffile.file.path) as img:
-        frames = []
-        for frame in ImageSequence.Iterator(img):
-            watermark_image = Image.new('RGBA', frame.size, (255, 255, 255, 0))
-            draw = ImageDraw.Draw(watermark_image, 'RGBA')
-            font = ImageFont.truetype(font_path, font_size, encoding="unic")
-            text_width, text_height = draw.textsize(text=text, font=font)
-            x_axis = frame.width - text_width - 10
-            y_axis = frame.height - text_height - 10
-            if x_axis < 0 or y_axis < 0:
-                return_data = {
-                    "code": 20,
-                    "info": "GIF_TOO_SMALL",
-                    "data": {
-                        "id": gif.id
+    try:
+        gif = GifMetadata.objects.filter(id=gif_id).first()
+        text = '@' + user_name
+        font_path = "files/tests/Songti.ttf"
+        font_size = 16
+        with Image.open(gif.giffile.file.path) as img:
+            frames = []
+            for frame in ImageSequence.Iterator(img):
+                watermark_image = Image.new('RGBA', frame.size, (255, 255, 255, 0))
+                draw = ImageDraw.Draw(watermark_image, 'RGBA')
+                font = ImageFont.truetype(font_path, font_size, encoding="unic")
+                text_width, text_height = draw.textsize(text=text, font=font)
+                x_axis = frame.width - text_width - 10
+                y_axis = frame.height - text_height - 10
+                if x_axis < 0 or y_axis < 0:
+                    return_data = {
+                        "id": gif.id,
+                        "code": 20,
+                        "info": "GIF_TOO_SMALL",
                     }
-                }
-                return return_data
-            draw.text((x_axis, y_axis), text, font=font, fill=(0, 0, 0, 255))
-            frame = Image.alpha_composite(frame.convert('RGBA'), watermark_image)
-            frames.append(frame)
-        frames[0].save(gif.giffile.file.path, save_all=True, append_images=frames[1:], disposal=2)
-    return_data = {"id": gif.id}
-    return return_data
+                    task = TaskInfo.objects.filter(id=task_id).first()
+                    task.task_status = "FAILURE"
+                    task.task_result = return_data
+                    task.save()
+                    return return_data
+                draw.text((x_axis, y_axis), text, font=font, fill=(0, 0, 0, 255))
+                frame = Image.alpha_composite(frame.convert('RGBA'), watermark_image)
+                frames.append(frame)
+            frames[0].save(gif.giffile.file.path, save_all=True, append_images=frames[1:], disposal=2)
+        return_data = {"id": gif.id}
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "SUCCESS"
+        task.task_result = return_data
+        task.save()
+        return return_data
+    except Exception as error:
+        print(error)
+        task = TaskInfo.objects.filter(id=task_id).first()
+        task.task_status = "FAILURE"
+        task.save()
+        return_data = {
+            "error": str(error)
+        }
+        return return_data
 
 @csrf_exempt
 @handle_errors
-def image_watermark_check(req: HttpRequest, task_id):
+def image_task_check(req: HttpRequest):
     '''
     request:
-        None
+        User token
     response:
         {
-            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
-            "task_status": "PENDING"
-        }
-        {
-            "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
-            "task_status": "STARTED"
-        }
-        {
-            "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
-            "task_status": "SUCCESS",
-            "task_result": {
-                "id": 6
-            }
+            "code": 0,
+            "info": "SUCCESS",
+            "data": [
+                {
+                    "task_id": "ec1e476d-4f95-4d5e-94f3-b094de82c500",
+                    "task_type": "watermark",
+                    "task_status": "PENDING",
+                    "task_time": "2023-04-15T13:56:38.484Z"
+                },
+                {
+                    "task_id": "efe4811e-bdbf-49e0-80ad-a93749159cd0",
+                    "task_type": "video"
+                    "task_status": "SUCCESS",
+                    "task_result": {
+                        "id": 6
+                    }
+                }
+            ]
         }
     '''
     if req.method == "GET":
-        task_result = AsyncResult(task_id)
+        try:
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+        except DecodeError as error:
+            print(error)
+            return unauthorized_error(str(error))
+
+        user = UserInfo.objects.filter(id=token["id"]).first()
+        task_ids = user.task_history
+        user_task_list = []
+
+        task_ids = dict(sorted(list(task_ids.items()), key=lambda x: x[1], reverse=True))
+        for task_id, _ in task_ids.items():
+            task = TaskInfo.objects.filter(task_id=task_id).first()
+            if task.task_status == "STARTED":
+                created_at = task.task_time.timestamp()
+                current_time = datetime.datetime.now().timestamp()
+                if current_time - created_at >= config.TASK_HANDLING_MAX_TIME:
+                    return_data = {
+                        "code": 23,
+                        "info": "TOO_LONG_TIME"
+                    }
+                    task.task_status = "FAILURE"
+                    task.task_result = return_data
+                    task.save()
+            data = {
+                "task_id": task.task_id,
+                "task_type": task.task_type,
+                "task_status": task.task_status,
+                "task_time": task.task_time
+            }
+            if task.task_result:
+                data['task_result'] = task.task_result
+            user_task_list.append(data)
+
         return_data = {
             "data": {
-                "task_id": task_id,
-                "task_status": task_result.status
+                "task_count": len(task_ids),
+                "task_data": user_task_list
             }
         }
-        if task_result.status == 'SUCCESS':
-            return_data["data"]['task_result'] = task_result.result
         return request_success(return_data)
     return not_found_error()
 
