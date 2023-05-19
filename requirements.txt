@@ -16,5 +16,7 @@ coverage
 pyJWT
 uWSGI
 Pillow
+synonyms==3.18.0
+smart_open
 # scikit-image
 # tensorflow
