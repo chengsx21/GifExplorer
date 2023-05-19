@@ -3300,6 +3300,22 @@ class ViewsTests(TestCase):
         self.assertEqual(len(res.json()["data"]), 1)
         assert isinstance(res.json()["data"]["suggestions"], list)
 
+    def test_search_suggest_with_special_cases(self):
+        '''
+            Test search suggest with special cases
+        '''
+        req = {
+            "query": "falut sentence"
+        }
+        res = self.search_suggest_with_correct_response_method(req)
+        while res.status_code != 200:
+            res = self.search_suggest_with_correct_response_method(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 1)
+        assert isinstance(res.json()["data"]["suggestions"], list)
+        assert res.json()["data"]["suggestions"][0] == "fault sentence"
+
     def test_search_hotwords(self):
         '''
             Test search hotwords
