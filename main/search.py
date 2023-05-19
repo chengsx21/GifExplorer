@@ -343,6 +343,7 @@ class ElasticSearchEngine():
         target = request["target"]
         search_text = request["keyword"]
         synonyms_list = get_synonyms(request["keyword"])
+        # print(f"synonyms_list = {synonyms_list}")
         if target == "uploader":
             must_array.append({
                 "terms": {
@@ -660,7 +661,7 @@ class ElasticSearchEngine():
             corrected_sent, detail = pycorrector.correct(input)
         else:
             corrected_sent, detail = pycorrector.en_correct(input)
-        # print(corrected_sent)
+        # print(f"corrected_sent = {corrected_sent}")
         return corrected_sent
 
 # end ElasticSearchEngine
@@ -747,6 +748,17 @@ def test_personlization_search():
     print("[test personlization search pass]")
 
 
+def test_synonyms(sentence):
+    synonyms_list = get_synonyms(sentence)
+    print(f"synonyms_list = {synonyms_list}")
+    print("[test synonyms pass]")
+
+
+def test_correct(sentence):
+    corrected = ElasticSearchEngine().correct(sentence)
+    print(f"corrected = {corrected}")
+    print("[test correct pass]")
+
 
 if __name__ == "__main__":
 
@@ -755,6 +767,11 @@ if __name__ == "__main__":
     test_suggest_search()
     test_personlization_search()
     test_hotwords_search()
+    test_synonyms("fun")   # assert ['fun', 'Fun', 'phone']
+    test_synonyms("food")  # assert ['food', 'crops', 'cooked']
+    test_synonyms("食物")  # assert ['食物', '食材', '水果']
+    test_correct("falut sentence")  # assert 'fault sentence'
+    test_correct("少先队员因该为老人让坐")  # assert '少先队员应该为老人让座'
 
 
 # if __name__ == "__main__":
