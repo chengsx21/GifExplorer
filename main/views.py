@@ -642,7 +642,7 @@ def user_get_followings(req: HttpRequest, user_id: any):
     return not_found_error()
 
 @csrf_exempt
-# @handle_errors
+@handle_errors
 def user_message_list(req: HttpRequest):
     '''
     request:
