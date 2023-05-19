@@ -5,6 +5,23 @@ Contact: luty21@mails.tsinghua.edu.cn
 """
 import json
 from elasticsearch import Elasticsearch
+# from .search_helpers import get_synonyms
+
+import synonyms
+
+
+def get_synonyms(sentence):
+    """
+    return the synonyms of keywords of 'sentence'
+    """
+    # 英文情形
+
+    # 中文情形
+    keywords_list = synonyms.keywords(sentence, topK=3)  # 从输入文本中提取 3 个关键词
+    synonyms_list = []
+    for keyword in keywords_list:
+        synonyms_list += synonyms.nearby(keyword)[0][:3]  # 每个词语取 3 个近义词
+    return synonyms_list
 
 
 class ElasticSearchEngine():
@@ -257,10 +274,105 @@ class ElasticSearchEngine():
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
     def search_related(self, request):
-        '''
+        """
         [related match]
-        '''
-        return []
+            This function search targets based on relevant words.
+
+        [params]
+            requset: filter info
+            {
+                "target": str, (default="")
+                "keyword": str, (keywords actually, must) 
+                "category": str, (default="")
+                "filter": [
+                    {"range": {"width": {"gte": min, "lte": max}}},
+                    {"range": {"height": {"gte": min, "lte": max}}},
+                    {"range": {"duration": {"gte": min, "lte": max}}}
+                ], (default=[])
+                "tags": [str1, str2, str3 ...] (default=[])
+            }
+
+        [return value]
+            list of gif ids
+        """
+
+        # query example
+        # {
+        #     "query": {
+        #         "bool": {
+        #             "must": [
+        #                 {"terms": {
+        #                       "title": ["dinner", "supper"]
+        #                   }},
+        #                 {"term": {"category.keyword": "animal"}} # optional
+        #                 {"terms_set": {
+        #                     "tags": {
+        #                         "terms": ["animal", "cat"],
+        #                         "minimum_should_match_script": {
+        #                             "source": "2"
+        #                         }
+        #                     }
+        #                 }}
+        #                 {"range": {"width": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"height": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
+        #             ]
+        #         }
+        #     }
+        # }
+
+        body = {
+            "query": {
+                "bool": {
+                    "must": []
+                }
+            }
+        }
+
+        # match title or uploader
+        must_array = []
+        target = request["target"]
+        search_text = request["keyword"]
+        synonyms_list = get_synonyms(request["keyword"])
+        if target == "uploader":
+            must_array.append({
+                "terms": {
+                    "uploader": synonyms_list
+                }
+            })
+        elif target == "title":
+            must_array.append({
+                "terms": {
+                    "title": synonyms_list
+                }
+            })
+
+        # filter width / height / duration
+        must_array += request["filter"]
+
+        # filter category
+        if request["category"] != "":
+            must_array.append(
+                {"term": {"category.keyword": request["category"]}})
+
+        # filter tags
+        # tags provided by user should be the subset of real gif tags
+        tags = request["tags"]
+        if tags:
+            must_array.append({"terms_set": {
+                "tags": {
+                    "terms": tags,
+                    "minimum_should_match_script": {
+                        "source": str(len(tags))
+                    }
+                }
+            }})
+
+        body["query"]["bool"]["must"] = must_array
+        self.client.index(index="message_index", body={"message": search_text})
+        response = self.client.search(body=body, size=10000, preference="primary")
+        # hits_num = response["hits"]["total"]["value"]
+        return [hit["_id"] for hit in response["hits"]["hits"]]
 
     def search_fuzzy(self, request):
         '''

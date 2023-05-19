@@ -12,7 +12,6 @@ import time
 import datetime
 import imghdr
 import re
-import synonyms
 import imageio
 import imagehash
 from jwt import DecodeError
@@ -2588,14 +2587,6 @@ def image_search(req: HttpRequest):
             elif body["type"] == "fuzzy":
                 id_list = search_engine.search_fuzzy(request=body)
             elif body["type"] == "related":
-                # 英文情形
-                
-                # 中文情形
-                keywords_list = synonyms.keywords(body["keyword"], topK=3)  # 从输入文本中提取 3 个关键词
-                synonyms_list = []
-                for keyword in keywords_list:
-                    synonyms_list += synonyms.nearby(keyword)[0][:3]  # 每个词语取 3 个近义词
-                body["keyword"] = ','.join(synonyms_list)
                 id_list = search_engine.search_related(request=body)
             else:
                 return format_error()
