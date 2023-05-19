@@ -5,16 +5,19 @@ Contact: luty21@mails.tsinghua.edu.cn
 """
 import synonyms
 import pycorrector
+import re
 import json
 from elasticsearch import Elasticsearch
-from .helpers import is_chinese
-# import re
-# def is_chinese(char: str):
-#     '''
-#         Test if char is chinese
-#     '''
-#     return re.match(".*[\u3400-\u4DB5\u4E00-\u9FCB\uF900-\uFA6A].*", char)
 
+
+def contains_chinese(sentence: str):
+    """
+        Test if sentence has Chinese
+    """
+    if re.search(".*[\u3400-\u4DB5\u4E00-\u9FCB\uF900-\uFA6A].*", sentence):
+        return True
+    else:
+        return False
 
 def get_synonyms(sentence):
     """
@@ -653,7 +656,7 @@ class ElasticSearchEngine():
         return response
 
     def correct(self, input):
-        if is_chinese(input):
+        if contains_chinese(input):
             corrected_sent, detail = pycorrector.correct(input)
         else:
             corrected_sent, detail = pycorrector.en_correct(input)
