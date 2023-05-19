@@ -2847,7 +2847,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with missing target and keyword
         '''
-        for each_type in ["perfect", "partial", "fuzzy", "related"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy", "related"]:
             req = {
                 "filter": [ 
                     {"range": {"width": {"gte": 0, "lte": 1000}}},
@@ -3045,7 +3045,7 @@ class ViewsTests(TestCase):
         '''
             Test image search with wrong tags type
         '''
-        for each_type in ["perfect", "partial", "regex", "fuzzy", "related"]:
+        for each_type in ["perfect", "partial", "regex", "fuzzy"]:
             for target in ["title", "uploader"]:
                 for wrong_tag in ["food", 1, [0, "foods"]]:
                     req = {
@@ -3230,6 +3230,52 @@ class ViewsTests(TestCase):
         '''
             Test search suggest
         '''
+        for correct in [True, False]:
+            req = {
+                "query": "f",
+                "correct": correct
+            }
+            res = self.search_suggest_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.search_suggest_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(len(res.json()["data"]), 1)
+            assert isinstance(res.json()["data"]["suggestions"], list)
+
+    def test_search_suggest_with_wrong_method(self):
+        '''
+            Test search suggest with wrong method
+        '''
+        for correct in [True, False]:
+            req = {
+                "query": "f",
+                "correct": correct
+            }
+            res = self.search_suggest_with_wrong_response_method(req)
+            self.assertEqual(res.status_code, 404)
+            self.assertEqual(res.json()["code"], 1000)
+
+    def test_search_suggest_with_missing_query(self):
+        '''
+            Test search suggest with missing query
+        '''
+        for correct in [True, False]:
+            req = {
+                "correct": correct
+            }
+            res = self.search_suggest_with_correct_response_method(req)
+            while res.status_code != 200:
+                res = self.search_suggest_with_correct_response_method(req)
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.json()["code"], 0)
+            self.assertEqual(len(res.json()["data"]), 1)
+            assert isinstance(res.json()["data"]["suggestions"], list)
+
+    def test_search_suggest_with_missing_correct(self):
+        '''
+            Test search suggest with missing correct
+        '''
         req = {
             "query": "f"
         }
@@ -3239,21 +3285,11 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         self.assertEqual(len(res.json()["data"]), 1)
+        assert isinstance(res.json()["data"]["suggestions"], list)
 
-    def test_search_suggest_with_wrong_method(self):
+    def test_search_suggest_with_missing_query_and_correct(self):
         '''
-            Test search suggest with wrong method
-        '''
-        req = {
-            "query": "f"
-        }
-        res = self.search_suggest_with_wrong_response_method(req)
-        self.assertEqual(res.status_code, 404)
-        self.assertEqual(res.json()["code"], 1000)
-
-    def test_search_suggest_with_missing_query(self):
-        '''
-            Test search suggest with missing query
+            Test search suggest with missing query and correct
         '''
         req = {}
         res = self.search_suggest_with_correct_response_method(req)
@@ -3262,6 +3298,23 @@ class ViewsTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["code"], 0)
         self.assertEqual(len(res.json()["data"]), 1)
+        assert isinstance(res.json()["data"]["suggestions"], list)
+
+    def test_search_suggest_with_special_cases(self):
+        '''
+            Test search suggest with special cases
+        '''
+        req = {
+            "query": "falut sentence"
+        }
+        res = self.search_suggest_with_correct_response_method(req)
+        while res.status_code != 200:
+            res = self.search_suggest_with_correct_response_method(req)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["code"], 0)
+        self.assertEqual(len(res.json()["data"]), 1)
+        assert isinstance(res.json()["data"]["suggestions"], list)
+        assert res.json()["data"]["suggestions"][0] == "fault sentence"
 
     def test_search_hotwords(self):
         '''

@@ -2651,7 +2651,8 @@ def search_suggest(req: HttpRequest):
     """
     request:
         {
-            "query": "Hello" (default = "")
+            "query": "Hello" (default = ""),
+            "correct": True (default = True)
         }
     response:
         {
@@ -2673,18 +2674,35 @@ def search_suggest(req: HttpRequest):
             return format_error()
         if "query" not in body:
             body["query"] = ""
+        if "correct" not in body:
+            body["correct"] = True
 
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
 
-        suggestion_list = search_engine.suggest_search(body["query"])
-
-        return request_success(data=
-            {
-                "data": {
-                    "suggestions": suggestion_list
-                }
-            })
+        # 如果不纠错
+        if not body["correct"]:
+            # 直接获取补全建议
+            suggestion_list = search_engine.suggest_search(body["query"])
+            return request_success(data=
+                {
+                    "data": {
+                        "suggestions": suggestion_list
+                    }
+                })
+        # 如果需要纠错
+        else:
+            # 先纠错
+            corrected = search_engine.correct(body["query"])
+            # 用纠错后的结果去获取补全建议
+            suggestion_list = search_engine.suggest_search(corrected)
+            return request_success(data=
+                {
+                    "data": {
+                        "suggestions": [corrected] + suggestion_list
+                        # 第一个结果为纠错建议结果
+                    }
+                })
     return not_found_error()
 
 @csrf_exempt
