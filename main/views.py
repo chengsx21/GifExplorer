@@ -743,8 +743,8 @@ def user_post_message(req: HttpRequest):
         new_message = Message.objects.create(sender=sender, receiver=receiver, message=message)
         return_data = {
             "data": {
-                "sender": sender.user_name,
-                "receiver": receiver.user_name,
+                "sender": sender.id,
+                "receiver": receiver.id,
                 "message": message,
                 "pub_time": new_message.pub_time
             }
