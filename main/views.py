@@ -2680,10 +2680,10 @@ def search_suggest(req: HttpRequest):
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
 
-        suggestion_list = search_engine.suggest_search(body["query"])
-
         # 如果不纠错
         if not body["correct"]:
+            # 直接获取补全建议
+            suggestion_list = search_engine.suggest_search(body["query"])
             return request_success(data=
                 {
                     "data": {
@@ -2692,11 +2692,14 @@ def search_suggest(req: HttpRequest):
                 })
         # 如果需要纠错
         else:
-            correct_suggest = search_engine.correct(body["query"])
+            # 先纠错
+            corrected = search_engine.correct(body["query"])
+            # 用纠错后的结果去获取补全建议
+            suggestion_list = search_engine.suggest_search(corrected)
             return request_success(data=
                 {
                     "data": {
-                        "suggestions": [correct_suggest] + suggestion_list
+                        "suggestions": [corrected] + suggestion_list
                         # 第一个结果为纠错建议结果
                     }
                 })
