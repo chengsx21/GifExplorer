@@ -2624,8 +2624,7 @@ def image_search(req: HttpRequest):
             elif body["type"] == "fuzzy":
                 id_list = search_engine.search_fuzzy(request=body)
             elif body["type"] == "related":
-                id_list = []
-                # id_list = search_engine.search_related(request=body)
+                id_list = search_engine.search_related(request=body)
             else:
                 return format_error()
 
