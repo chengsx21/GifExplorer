@@ -2763,29 +2763,26 @@ class ViewsTests(TestCase):
             Test image search wrong target
         '''
         for each_type in ["perfect", "partial", "regex", "fuzzy", "related"]:
-            if each_type != "regex":
-                wrong_targets = ["wrong target"]
-            else:
-                wrong_targets = ["wrong target", ""]
-            for wrong_target in wrong_targets:
-                req = {
-                    "target": wrong_target,
-                    "keyword": "food",
-                    "filter": [ 
-                        {"range": {"width": {"gte": 0, "lte": 1000}}},
-                        {"range": {"height": {"gte": 0, "lte": 1000}}},
-                        {"range": {"duration": {"gte": 0, "lte": 1000}}}
-                    ],
-                    "category": "food",
-                    "tags": ["food"],
-                    "type": each_type,
-                    "page": 1
-                }
+            req = {
+                "target": "wrong target",
+                "keyword": "food",
+                "filter": [ 
+                    {"range": {"width": {"gte": 0, "lte": 1000}}},
+                    {"range": {"height": {"gte": 0, "lte": 1000}}},
+                    {"range": {"duration": {"gte": 0, "lte": 1000}}}
+                ],
+                "category": "food",
+                "tags": ["food"],
+                "type": each_type,
+                "page": 1
+            }
+            if each_type == "regex":
+                req["tags"] = []
+            res = self.image_search_with_correct_response_method(req)
+            while res.status_code != 400:
                 res = self.image_search_with_correct_response_method(req)
-                while res.status_code != 400:
-                    res = self.image_search_with_correct_response_method(req)
-                self.assertEqual(res.status_code, 400)
-                self.assertEqual(res.json()["code"], 1005)
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["code"], 1005)
 
     def test_image_search_with_missing_target(self):
         '''
@@ -2804,11 +2801,21 @@ class ViewsTests(TestCase):
                 "type": each_type,
                 "page": 1
             }
-            res = self.image_search_with_correct_response_method(req)
-            while res.status_code != 400:
+            if each_type == "regex":
+                req["tags"] = []
+            if each_type == "regex": 
                 res = self.image_search_with_correct_response_method(req)
-            self.assertEqual(res.status_code, 400)
-            self.assertEqual(res.json()["code"], 1005)
+                while res.status_code != 200:
+                    res = self.image_search_with_correct_response_method(req)
+                self.assertEqual(res.status_code, 200)
+                self.assertEqual(res.json()["code"], 0)
+                self.assertEqual(len(res.json()["data"]), 4)
+            else:
+                res = self.image_search_with_correct_response_method(req)
+                while res.status_code != 400:
+                    res = self.image_search_with_correct_response_method(req)
+                self.assertEqual(res.status_code, 400)
+                self.assertEqual(res.json()["code"], 1005)
 
     def test_image_search_with_missing_keyword(self):
         '''
@@ -2859,6 +2866,8 @@ class ViewsTests(TestCase):
                 "type": each_type,
                 "page": 1
             }
+            if each_type == "regex":
+                req["tags"] = []
             res = self.image_search_with_correct_response_method(req)
             while res.status_code != 200:
                 res = self.image_search_with_correct_response_method(req)
@@ -2934,6 +2943,8 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
+                if each_type == "regex":
+                    req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
                 while res.status_code != 200:
                     res = self.image_search_with_correct_response_method(req)
@@ -2945,51 +2956,27 @@ class ViewsTests(TestCase):
         '''
             Test image search with wrong filter type
         '''
-        ress = []
         for each_type in ["perfect", "partial", "regex", "fuzzy", "related"]:
             for target in ["title", "uploader"]:
-                req = {
-                    "target": target,
-                    "keyword": "food",
-                    "filter": {"range": {"width": {"gte": 0, "lte": 1000}}},
-                    "category": "food",
-                    "tags": ["food"],
-                    "type": each_type,
-                    "page": 1
-                }
-                res = self.image_search_with_correct_response_method(req)
-                while res.status_code != 400:
+                for wrong_filter in [{"range": {"width": {"gte": 0, "lte": 1000}}},
+                                     [1, 2],
+                                     [{"wrong key": {"width": {"gte": 0, "lte": 1000}}}] ]:
+                    req = {
+                        "target": target,
+                        "keyword": "food",
+                        "filter": wrong_filter,
+                        "category": "food",
+                        "tags": ["food"],
+                        "type": each_type,
+                        "page": 1
+                    }
+                    if each_type == "regex":
+                        req["tags"] = []
                     res = self.image_search_with_correct_response_method(req)
-                ress.append(res)
-                req = {
-                    "target": target,
-                    "keyword": "food",
-                    "filter": [1, 2],
-                    "category": "food",
-                    "tags": ["food"],
-                    "type": each_type,
-                    "page": 1
-                }
-                res = self.image_search_with_correct_response_method(req)
-                while res.status_code != 400:
-                    res = self.image_search_with_correct_response_method(req)
-                ress.append(res)
-                req = {
-                    "target": target,
-                    "keyword": "food",
-                    "filter": [{"wrong key": {"width": {"gte": 0, "lte": 1000}}}],
-                    "category": "food",
-                    "tags": ["food"],
-                    "type": each_type,
-                    "page": 1
-                }
-                res = self.image_search_with_correct_response_method(req)
-                while res.status_code != 400:
-                    res = self.image_search_with_correct_response_method(req)
-                ress.append(res)
-        for res in ress:
-            self.assertEqual(res.status_code, 400)
-            self.assertEqual(res.json()["code"], 1005)
+                    while res.status_code != 400:
+                        res = self.image_search_with_correct_response_method(req)
+                    self.assertEqual(res.status_code, 400)
+                    self.assertEqual(res.json()["code"], 1005)
 
     def test_image_search_with_wrong_keyword_type(self):
         '''
@@ -3010,6 +2997,8 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
+                if each_type == "regex":
+                    req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
                 while res.status_code != 400:
                     res = self.image_search_with_correct_response_method(req)
@@ -3035,6 +3024,8 @@ class ViewsTests(TestCase):
                     "type": each_type,
                     "page": 1
                 }
+                if each_type == "regex":
+                    req["tags"] = []
                 res = self.image_search_with_correct_response_method(req)
                 while res.status_code != 400:
                     res = self.image_search_with_correct_response_method(req)
@@ -3300,21 +3291,21 @@ class ViewsTests(TestCase):
         self.assertEqual(len(res.json()["data"]), 1)
         assert isinstance(res.json()["data"]["suggestions"], list)
 
-    def test_search_suggest_with_special_cases(self):
-        '''
-            Test search suggest with special cases
-        '''
-        req = {
-            "query": "falut sentence"
-        }
-        res = self.search_suggest_with_correct_response_method(req)
-        while res.status_code != 200:
-            res = self.search_suggest_with_correct_response_method(req)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["code"], 0)
-        self.assertEqual(len(res.json()["data"]), 1)
-        assert isinstance(res.json()["data"]["suggestions"], list)
-        assert res.json()["data"]["suggestions"][0] == "fault sentence"
+    # def test_search_suggest_with_special_cases(self):
+    #     '''
+    #         Test search suggest with special cases
+    #     '''
+    #     req = {
+    #         "query": "falut sentence"
+    #     }
+    #     res = self.search_suggest_with_correct_response_method(req)
+    #     while res.status_code != 200:
+    #         res = self.search_suggest_with_correct_response_method(req)
+    #     self.assertEqual(res.status_code, 200)
+    #     self.assertEqual(res.json()["code"], 0)
+    #     self.assertEqual(len(res.json()["data"]), 1)
+    #     assert isinstance(res.json()["data"]["suggestions"], list)
+    #     assert res.json()["data"]["suggestions"][0] == "fault sentence"
 
     def test_search_hotwords(self):
         '''

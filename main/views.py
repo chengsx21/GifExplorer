@@ -2522,7 +2522,7 @@ def image_search(req: HttpRequest):
         # type 默认为 "perfect"
         if "type" not in body:
             body["type"] = "perfect"
-        # type 必须为 "perfect", "partial", "fuzzy", "regex", "related"] 之一
+        # type 必须为以下几个之一
         try:
             assert body["type"] in ["perfect", "partial", "fuzzy", "regex", "related"]
         except Exception as error:
