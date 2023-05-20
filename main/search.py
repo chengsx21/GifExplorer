@@ -77,6 +77,7 @@ class ElasticSearchEngine():
             This function is used to search gifs with a particular title
             as well as uploader and there's no segmentation for keyword.
             Support filters.
+
         [params]
             requset: dic of filter info
             {
@@ -91,6 +92,7 @@ class ElasticSearchEngine():
                 "tags": [str1, str2, str3 ...] (default=[])
             }
             all segments are optional!
+
         [return value]
             list of gif ids, sorted by correlation scores
         """
@@ -201,7 +203,7 @@ class ElasticSearchEngine():
         #                         "operator": "and"
         #                     }
         #                 }},
-        #                 {"term": {"category.keyword": "animal"}} # optional
+        #                 {"term": {"category.keyword": "animal"}}, # optional
         #                 {"terms_set": {
         #                     "tags": {
         #                         "terms": ["animal", "cat"],
@@ -209,7 +211,7 @@ class ElasticSearchEngine():
         #                             "source": "2"
         #                         }
         #                     }
-        #                 }}
+        #                 }},
         #                 {"range": {"width": {"gte": 1, "lte": 2}}},
         #                 {"range": {"height": {"gte": 1, "lte": 2}}},
         #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
@@ -384,6 +386,107 @@ class ElasticSearchEngine():
     #     # hits_num = response["hits"]["total"]["value"]
     #     return [hit["_id"] for hit in response["hits"]["hits"]]
 
+    def search_related(self, request):
+        """
+        [related search]
+            This function search targets based on relevant words.
+
+        [params]
+            requset: filter info
+            {
+                "target": str, (default="")
+                "keyword": str, (keywords actually, must) 
+                "category": str, (default="")
+                "filter": [
+                    {"range": {"width": {"gte": min, "lte": max}}},
+                    {"range": {"height": {"gte": min, "lte": max}}},
+                    {"range": {"duration": {"gte": min, "lte": max}}}
+                ], (default=[])
+                "tags": [str1, str2, str3 ...] (default=[])
+            }
+
+        [return value]
+            list of gif ids
+        """
+
+        # query example
+        # {
+        #     "query": {
+        #         "bool": {
+        #             "must": [
+        #                 {"terms": {
+        #                       "title": ["dinner", "supper"]
+        #                   }},
+        #                 {"term": {"category.keyword": "animal"}} # optional
+        #                 {"terms_set": {
+        #                     "tags": {
+        #                         "terms": ["animal", "cat"],
+        #                         "minimum_should_match_script": {
+        #                             "source": "2"
+        #                         }
+        #                     }
+        #                 }}
+        #                 {"range": {"width": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"height": {"gte": 1, "lte": 2}}},
+        #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
+        #             ]
+        #         }
+        #     }
+        # }
+
+        body = {
+            "query": {
+                "bool": {
+                    "must": []
+                }
+            }
+        }
+
+        # match title or uploader
+        must_array = []
+        target = request["target"]
+        search_text = request["keyword"]
+        if target == "uploader":
+            must_array.append({
+                "terms": {
+                    "uploader": request["keyword"].split(",")
+                }
+            })
+        elif target == "title":
+            must_array.append({
+                "terms": {
+                    "title": request["keyword"].split(",")
+                }
+            })
+
+        # filter width / height / duration
+        must_array += request["filter"]
+
+        # filter category
+        if request["category"] != "":
+            must_array.append(
+                {"term": {"category.keyword": request["category"]}})
+
+        # filter tags
+        # tags provided by user should be the subset of real gif tags
+        tags = request["tags"]
+        if tags:
+            must_array.append({"terms_set": {
+                "tags": {
+                    "terms": tags,
+                    "minimum_should_match_script": {
+                        "source": str(len(tags))
+                    }
+                }
+            }})
+
+        body["query"]["bool"]["must"] = must_array
+        self.client.index(index="message_index", body={"message": search_text})
+        response = self.client.search(body=body, size=10000, preference="primary")
+        # hits_num = response["hits"]["total"]["value"]
+        return [hit["_id"] for hit in response["hits"]["hits"]]
+
+
     def search_fuzzy(self, request):
         '''
         [fuzzy match]
@@ -477,8 +580,6 @@ class ElasticSearchEngine():
        
         response = self.client.search(body=body, size=10000, preference="primary")
 
-        # from pprint import pprint
-        # pprint(response["hits"]["hits"][:10])
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
@@ -487,7 +588,7 @@ class ElasticSearchEngine():
         """
         [hot words]
             Provide hot candidate words based on search history.
-   
+
         [params]
             None
 
@@ -496,12 +597,12 @@ class ElasticSearchEngine():
         """
 
         body = {
-            "size" : 0,  
-            "aggs" : {   
-                "messages" : {   
-                    "terms" : {   
-                        "size" : 10,
-                        "field" : "message"
+            "size": 0,
+            "aggs": {
+                "messages": {
+                    "terms": {
+                        "size": 10,
+                        "field": "message"
                     }
                 }
             }
@@ -567,10 +668,9 @@ class ElasticSearchEngine():
                 }
             })
 
-        response = self.client.search(body=body, size=10000)
+        response = self.client.search(index="gif", body=body, size=10000)
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
-
 
     def suggest_search(self, user_input):
         """
@@ -611,12 +711,11 @@ class ElasticSearchEngine():
             }
         }
 
-        response = self.client.search(body=body, size=10000)
+        response = self.client.search(body=body, size=10000, preference="primary")
         return [
             op["_source"]["suggest"]
             for op in response["suggest"]["title_suggest"][0]["options"]
         ]
-
     def post_metadata(self, data):
         """
         [post meta data]
@@ -663,6 +762,37 @@ class ElasticSearchEngine():
     #         corrected_sent, detail = pycorrector.en_correct(input)
     #     # print(f"corrected_sent = {corrected_sent}")
     #     return corrected_sent
+    def correct_search(self, input, target):
+        """
+        [correct user input]
+            This function will correct user input by providing
+            suggestions. Support spelling correction and content
+            correction to some extent.
+
+        [params]
+            input(str): input from user
+            target(str): title(default) or uploader
+
+        [return value]
+            list of suggestion string  
+        """
+
+        body = {
+            "suggest": {
+                "correct": {
+                }
+            }
+        }
+
+        phrase = {"field": target}
+        body["suggest"]["correct"]["phrase"] = phrase
+        body["suggest"]["correct"]["text"] = input
+
+        response = self.client.search(index="gif", body=body)
+        return [
+            option["text"]
+            for option in response["suggest"]["correct"][0]["options"]
+        ]
 
 # end ElasticSearchEngine
 
@@ -748,6 +878,17 @@ def test_personlization_search():
     print("[test personlization search pass]")
 
 
+def test_correct_search():
+    """
+    Unit test for correct
+    """
+    response = ElasticSearchEngine().correct_search(
+        input="fodd and drinnk", target="title"
+    )
+    print("response: ", response)
+    print("[correct pass]")
+
+
 # def test_synonyms(sentence):
 #     synonyms_list = get_synonyms(sentence)
 #     print(f"synonyms_list = {synonyms_list}")
@@ -767,6 +908,7 @@ if __name__ == "__main__":
     test_suggest_search()
     test_personlization_search()
     test_hotwords_search()
+    test_correct_search()
     # test_synonyms("")
     # test_synonyms("fun")   # assert ['fun', 'Fun', 'phone']
     # test_synonyms("food")  # assert ['food', 'crops', 'cooked']
