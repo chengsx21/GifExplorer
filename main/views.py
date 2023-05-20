@@ -809,6 +809,45 @@ def user_read_message(req: HttpRequest, user_id: any):
 
 @csrf_exempt
 @handle_errors
+def user_info(req: HttpRequest, user_id: any):
+    '''
+    request:
+        - None
+    response:
+        - status
+    '''
+    if req.method == "GET":
+        if not isinstance(user_id, str) or not user_id.isdigit():
+            return format_error()
+
+        user = UserInfo.objects.filter(id=int(user_id)).first()
+        if not user:
+            return request_failed(12, "USER_NOT_FOUND", data={"data": {}})
+
+        is_followed = False
+        if req.META.get("HTTP_AUTHORIZATION"):
+            encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+            token = helpers.decode_token(encoded_token)
+            if not helpers.is_token_valid(token=encoded_token):
+                return unauthorized_error()
+            current_user = UserInfo.objects.filter(id=token["id"]).first()
+            if str(user.id) in current_user.followings:
+                is_followed = True
+
+        return_data = {
+            "data": {
+                "id": user.id,
+                "user_name": user.user_name,
+                "signature": user.signature,
+                "avatar": user.avatar,
+                "is_followed": is_followed
+            }
+        }
+        return request_success(return_data)
+    return not_found_error()
+
+@csrf_exempt
+@handle_errors
 def user_read_history(req: HttpRequest):
     '''
     request:
