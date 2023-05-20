@@ -2696,7 +2696,7 @@ def search_suggest(req: HttpRequest):
             return request_success(data=
                 {
                     "data": {
-                        "suggestions": suggestion_list + corrected_list
+                        "suggestions": helpers.deduplicate(suggestion_list + corrected_list)
                     }
                 })
         else:

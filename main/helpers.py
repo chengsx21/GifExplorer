@@ -473,3 +473,9 @@ def show_user_message_page(user: UserInfo, other_user: UserInfo, page: int):
             "pub_time": single_message.pub_time
         })
     return messages_list, math.ceil(len(user_messages) / MAX_MESSAGES_PER_PAGE)
+
+def deduplicate(list):
+    '''
+    Deduplicate a list
+    '''
+    return [x for i, x in enumerate(list) if x not in list[:i]]
