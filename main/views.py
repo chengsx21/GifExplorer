@@ -2522,12 +2522,12 @@ def image_search(req: HttpRequest):
         # type 默认为 "perfect"
         if "type" not in body:
             body["type"] = "perfect"
-        # type 必须为 "perfect", "partial", "fuzzy", "regex" 之一
+        # type 必须为以下几个之一
         try:
             assert body["type"] in ["perfect", "partial", "fuzzy", "regex", "related"]
         except Exception as error:
             print(error)
-            return format_error()
+            return format_error()        
         # page 默认为 1
         if "page" not in body:
             body["page"] = 1
@@ -2546,13 +2546,15 @@ def image_search(req: HttpRequest):
             except Exception as error:
                 print(error)
                 return format_error()
-        # 正则表达式搜索的情形：target 必须属于 ["uploader", "title"]
+        # 正则表达式搜索的情形：target 必须属于 ["uploader", "title"] ，默认为 "title"
         else:
-            try:
-                assert body["target"] in ["uploader", "title"]
-            except Exception as error:
-                print(error)
-                return format_error()
+            if body["target"] not in ["uploader", "title"]:
+                body["target"] = "title"
+            # try:
+            #     assert body["target"] in ["uploader", "title"]
+            # except Exception as error:
+            #     print(error)
+            #     return format_error()
 
         search_start_time = time.time()
         # 通过正则表达式搜索
@@ -2622,7 +2624,8 @@ def image_search(req: HttpRequest):
             elif body["type"] == "fuzzy":
                 id_list = search_engine.search_fuzzy(request=body)
             elif body["type"] == "related":
-                id_list = search_engine.search_related(request=body)
+                id_list = []
+                # id_list = search_engine.search_related(request=body)
             else:
                 return format_error()
 
@@ -2681,7 +2684,8 @@ def search_suggest(req: HttpRequest):
         search_engine = config.SEARCH_ENGINE
 
         # 如果不纠错
-        if not body["correct"]:
+        # if not body["correct"]:
+        if True:
             # 直接获取补全建议
             suggestion_list = search_engine.suggest_search(body["query"])
             return request_success(data=
@@ -2690,19 +2694,19 @@ def search_suggest(req: HttpRequest):
                         "suggestions": suggestion_list
                     }
                 })
-        # 如果需要纠错
-        else:
-            # 先纠错
-            corrected = search_engine.correct(body["query"])
-            # 用纠错后的结果去获取补全建议
-            suggestion_list = search_engine.suggest_search(corrected)
-            return request_success(data=
-                {
-                    "data": {
-                        "suggestions": [corrected] + suggestion_list
-                        # 第一个结果为纠错建议结果
-                    }
-                })
+        # # 如果需要纠错
+        # else:
+        #     # 先纠错
+        #     corrected = search_engine.correct(body["query"])
+        #     # 用纠错后的结果去获取补全建议
+        #     suggestion_list = search_engine.suggest_search(corrected)
+        #     return request_success(data=
+        #         {
+        #             "data": {
+        #                 "suggestions": [corrected] + suggestion_list
+        #                 # 第一个结果为纠错建议结果
+        #             }
+        #         })
     return not_found_error()
 
 @csrf_exempt

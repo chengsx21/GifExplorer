@@ -3,8 +3,8 @@ Filename: main.py
 Author: lutianyu
 Contact: luty21@mails.tsinghua.edu.cn
 """
-import synonyms
-import pycorrector
+# import synonyms
+# import pycorrector
 import re
 import json
 from elasticsearch import Elasticsearch
@@ -19,18 +19,18 @@ def contains_chinese(sentence: str):
     else:
         return False
 
-def get_synonyms(sentence):
-    """
-    return the synonyms of keywords of 'sentence'
-    """
-    # 英文情形
+# def get_synonyms(sentence):
+#     """
+#     return the synonyms of keywords of 'sentence'
+#     """
+#     # 英文情形
 
-    # 中文情形
-    keywords_list = synonyms.keywords(sentence, topK=3)  # 从输入文本中提取 3 个关键词
-    synonyms_list = []
-    for keyword in keywords_list:
-        synonyms_list += synonyms.nearby(keyword)[0][:3]  # 每个词语取 3 个近义词
-    return synonyms_list
+#     # 中文情形
+#     keywords_list = synonyms.keywords(sentence, topK=3)  # 从输入文本中提取 3 个关键词
+#     synonyms_list = []
+#     for keyword in keywords_list:
+#         synonyms_list += synonyms.nearby(keyword)[0][:3]  # 每个词语取 3 个近义词
+#     return synonyms_list
 
 
 class ElasticSearchEngine():
@@ -282,107 +282,107 @@ class ElasticSearchEngine():
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
-    def search_related(self, request):
-        """
-        [related match]
-            This function search targets based on relevant words.
+    # def search_related(self, request):
+    #     """
+    #     [related match]
+    #         This function search targets based on relevant words.
 
-        [params]
-            requset: filter info
-            {
-                "target": str, (default="")
-                "keyword": str, (keywords actually, must) 
-                "category": str, (default="")
-                "filter": [
-                    {"range": {"width": {"gte": min, "lte": max}}},
-                    {"range": {"height": {"gte": min, "lte": max}}},
-                    {"range": {"duration": {"gte": min, "lte": max}}}
-                ], (default=[])
-                "tags": [str1, str2, str3 ...] (default=[])
-            }
+    #     [params]
+    #         requset: filter info
+    #         {
+    #             "target": str, (default="")
+    #             "keyword": str, (keywords actually, must) 
+    #             "category": str, (default="")
+    #             "filter": [
+    #                 {"range": {"width": {"gte": min, "lte": max}}},
+    #                 {"range": {"height": {"gte": min, "lte": max}}},
+    #                 {"range": {"duration": {"gte": min, "lte": max}}}
+    #             ], (default=[])
+    #             "tags": [str1, str2, str3 ...] (default=[])
+    #         }
 
-        [return value]
-            list of gif ids
-        """
+    #     [return value]
+    #         list of gif ids
+    #     """
 
-        # query example
-        # {
-        #     "query": {
-        #         "bool": {
-        #             "must": [
-        #                 {"terms": {
-        #                       "title": ["dinner", "supper"]
-        #                   }},
-        #                 {"term": {"category.keyword": "animal"}} # optional
-        #                 {"terms_set": {
-        #                     "tags": {
-        #                         "terms": ["animal", "cat"],
-        #                         "minimum_should_match_script": {
-        #                             "source": "2"
-        #                         }
-        #                     }
-        #                 }}
-        #                 {"range": {"width": {"gte": 1, "lte": 2}}},
-        #                 {"range": {"height": {"gte": 1, "lte": 2}}},
-        #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
-        #             ]
-        #         }
-        #     }
-        # }
+    #     # query example
+    #     # {
+    #     #     "query": {
+    #     #         "bool": {
+    #     #             "must": [
+    #     #                 {"terms": {
+    #     #                       "title": ["dinner", "supper"]
+    #     #                   }},
+    #     #                 {"term": {"category.keyword": "animal"}} # optional
+    #     #                 {"terms_set": {
+    #     #                     "tags": {
+    #     #                         "terms": ["animal", "cat"],
+    #     #                         "minimum_should_match_script": {
+    #     #                             "source": "2"
+    #     #                         }
+    #     #                     }
+    #     #                 }}
+    #     #                 {"range": {"width": {"gte": 1, "lte": 2}}},
+    #     #                 {"range": {"height": {"gte": 1, "lte": 2}}},
+    #     #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
+    #     #             ]
+    #     #         }
+    #     #     }
+    #     # }
 
-        body = {
-            "query": {
-                "bool": {
-                    "must": []
-                }
-            }
-        }
+    #     body = {
+    #         "query": {
+    #             "bool": {
+    #                 "must": []
+    #             }
+    #         }
+    #     }
 
-        # match title or uploader
-        must_array = []
-        target = request["target"]
-        search_text = request["keyword"]
-        synonyms_list = get_synonyms(request["keyword"])
-        # print(f"synonyms_list = {synonyms_list}")
-        if target == "uploader":
-            must_array.append({
-                "terms": {
-                    "uploader": synonyms_list
-                }
-            })
-        elif target == "title":
-            must_array.append({
-                "terms": {
-                    "title": synonyms_list
-                }
-            })
+    #     # match title or uploader
+    #     must_array = []
+    #     target = request["target"]
+    #     search_text = request["keyword"]
+    #     synonyms_list = get_synonyms(request["keyword"])
+    #     # print(f"synonyms_list = {synonyms_list}")
+    #     if target == "uploader":
+    #         must_array.append({
+    #             "terms": {
+    #                 "uploader": synonyms_list
+    #             }
+    #         })
+    #     elif target == "title":
+    #         must_array.append({
+    #             "terms": {
+    #                 "title": synonyms_list
+    #             }
+    #         })
 
-        # filter width / height / duration
-        must_array += request["filter"]
+    #     # filter width / height / duration
+    #     must_array += request["filter"]
 
-        # filter category
-        if request["category"] != "":
-            must_array.append(
-                {"term": {"category.keyword": request["category"]}})
+    #     # filter category
+    #     if request["category"] != "":
+    #         must_array.append(
+    #             {"term": {"category.keyword": request["category"]}})
 
-        # filter tags
-        # tags provided by user should be the subset of real gif tags
-        tags = request["tags"]
-        if tags:
-            must_array.append({"terms_set": {
-                "tags": {
-                    "terms": tags,
-                    "minimum_should_match_script": {
-                        "source": str(len(tags))
-                    }
-                }
-            }})
+    #     # filter tags
+    #     # tags provided by user should be the subset of real gif tags
+    #     tags = request["tags"]
+    #     if tags:
+    #         must_array.append({"terms_set": {
+    #             "tags": {
+    #                 "terms": tags,
+    #                 "minimum_should_match_script": {
+    #                     "source": str(len(tags))
+    #                 }
+    #             }
+    #         }})
 
-        body["query"]["bool"]["must"] = must_array
-        self.client.index(index="message_index", body={"message": search_text})
-        response = self.client.search(body=body, size=10000, preference="primary")
-        # hits_num = response["hits"]["total"]["value"]
-        return [hit["_id"] for hit in response["hits"]["hits"]]
+    #     body["query"]["bool"]["must"] = must_array
+    #     self.client.index(index="message_index", body={"message": search_text})
+    #     response = self.client.search(body=body, size=10000, preference="primary")
+    #     # hits_num = response["hits"]["total"]["value"]
+    #     return [hit["_id"] for hit in response["hits"]["hits"]]
 
     def search_fuzzy(self, request):
         '''
@@ -656,13 +656,13 @@ class ElasticSearchEngine():
         )
         return response
 
-    def correct(self, input):
-        if contains_chinese(input):
-            corrected_sent, detail = pycorrector.correct(input)
-        else:
-            corrected_sent, detail = pycorrector.en_correct(input)
-        # print(f"corrected_sent = {corrected_sent}")
-        return corrected_sent
+    # def correct(self, input):
+    #     if contains_chinese(input):
+    #         corrected_sent, detail = pycorrector.correct(input)
+    #     else:
+    #         corrected_sent, detail = pycorrector.en_correct(input)
+    #     # print(f"corrected_sent = {corrected_sent}")
+    #     return corrected_sent
 
 # end ElasticSearchEngine
 
@@ -748,16 +748,16 @@ def test_personlization_search():
     print("[test personlization search pass]")
 
 
-def test_synonyms(sentence):
-    synonyms_list = get_synonyms(sentence)
-    print(f"synonyms_list = {synonyms_list}")
-    print("[test synonyms pass]")
+# def test_synonyms(sentence):
+#     synonyms_list = get_synonyms(sentence)
+#     print(f"synonyms_list = {synonyms_list}")
+#     print("[test synonyms pass]")
 
 
-def test_correct(sentence):
-    corrected = ElasticSearchEngine().correct(sentence)
-    print(f"corrected = {corrected}")
-    print("[test correct pass]")
+# def test_correct(sentence):
+#     corrected = ElasticSearchEngine().correct(sentence)
+#     print(f"corrected = {corrected}")
+#     print("[test correct pass]")
 
 
 if __name__ == "__main__":
@@ -767,11 +767,12 @@ if __name__ == "__main__":
     test_suggest_search()
     test_personlization_search()
     test_hotwords_search()
-    test_synonyms("fun")   # assert ['fun', 'Fun', 'phone']
-    test_synonyms("food")  # assert ['food', 'crops', 'cooked']
-    test_synonyms("食物")  # assert ['食物', '食材', '水果']
-    test_correct("falut sentence")  # assert 'fault sentence'
-    test_correct("少先队员因该为老人让坐")  # assert '少先队员应该为老人让座'
+    # test_synonyms("")
+    # test_synonyms("fun")   # assert ['fun', 'Fun', 'phone']
+    # test_synonyms("food")  # assert ['food', 'crops', 'cooked']
+    # test_synonyms("食物")  # assert ['食物', '食材', '水果']
+    # test_correct("falut sentence")  # assert 'fault sentence'
+    # test_correct("少先队员因该为老人让坐")  # assert '少先队员应该为老人让座'
 
 
 # if __name__ == "__main__":
