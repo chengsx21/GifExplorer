@@ -2655,6 +2655,7 @@ def search_suggest(req: HttpRequest):
     request:
         {
             "query": "Hello" (default = ""),
+            "target": "title" (default = "title")
             "correct": True (default = True)
         }
     response:
@@ -2677,36 +2678,34 @@ def search_suggest(req: HttpRequest):
             return format_error()
         if "query" not in body:
             body["query"] = ""
+        try:
+           assert body["target"] in ["title", "uploader"]
+        except:
+            body["target"] = "title"
         if "correct" not in body:
             body["correct"] = True
 
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
 
-        # 如果不纠错
-        # if not body["correct"]:
-        if True:
-            # 直接获取补全建议
-            suggestion_list = search_engine.suggest_search(body["query"])
+        suggestion_list = search_engine.suggest_search(body["query"])
+        # 如果建议结果较少且需要纠错
+        if len(suggestion_list) < 4 and body["correct"]:
+            # 获取纠错建议
+            corrected_list = search_engine.correct_search(input=body["query"], target=body["target"])
+            return request_success(data=
+                {
+                    "data": {
+                        "suggestions": suggestion_list + corrected_list
+                    }
+                })
+        else:
             return request_success(data=
                 {
                     "data": {
                         "suggestions": suggestion_list
                     }
                 })
-        # # 如果需要纠错
-        # else:
-        #     # 先纠错
-        #     corrected = search_engine.correct(body["query"])
-        #     # 用纠错后的结果去获取补全建议
-        #     suggestion_list = search_engine.suggest_search(corrected)
-        #     return request_success(data=
-        #         {
-        #             "data": {
-        #                 "suggestions": [corrected] + suggestion_list
-        #                 # 第一个结果为纠错建议结果
-        #             }
-        #         })
     return not_found_error()
 
 @csrf_exempt
