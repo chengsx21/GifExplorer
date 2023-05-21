@@ -5,7 +5,7 @@ Contact: luty21@mails.tsinghua.edu.cn
 """
 # import synonyms
 # import pycorrector
-import re
+# import re
 import json
 from elasticsearch import Elasticsearch
 
