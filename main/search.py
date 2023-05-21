@@ -10,29 +10,6 @@ import json
 from elasticsearch import Elasticsearch
 
 
-def contains_chinese(sentence: str):
-    """
-        Test if sentence has Chinese
-    """
-    if re.search(".*[\u3400-\u4DB5\u4E00-\u9FCB\uF900-\uFA6A].*", sentence):
-        return True
-    else:
-        return False
-
-# def get_synonyms(sentence):
-#     """
-#     return the synonyms of keywords of 'sentence'
-#     """
-#     # 英文情形
-
-#     # 中文情形
-#     keywords_list = synonyms.keywords(sentence, topK=3)  # 从输入文本中提取 3 个关键词
-#     synonyms_list = []
-#     for keyword in keywords_list:
-#         synonyms_list += synonyms.nearby(keyword)[0][:3]  # 每个词语取 3 个近义词
-#     return synonyms_list
-
-
 class ElasticSearchEngine():
 
     """
@@ -44,10 +21,13 @@ class ElasticSearchEngine():
     - search function
         |- search_perfect
         |- search_partial
+        |- search_related
+        |- search_fuzzy
     - suggest function
         |- suggest_search
         |- personlization_search
         |- hotwords_search
+        |- correct_search
     - synchronization function
         |- post metadata
     - test function
@@ -160,8 +140,11 @@ class ElasticSearchEngine():
             }})
 
         body["query"]["bool"]["must"] = must_array
-        self.client.index(index="message_index", body={"message": search_text})
-        response = self.client.search(body=body, size=10000, preference="primary")
+        if search_text != "":
+            self.client.index(
+                index="message_index", body={"message": search_text}
+            )
+        response = self.client.search(index="gif", body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
@@ -279,113 +262,14 @@ class ElasticSearchEngine():
             })
 
         body["query"]["bool"]["must"] = must_array
-        self.client.index(index="message_index", body={"message": search_text})
-        response = self.client.search(body=body, size=10000, preference="primary")
+        if search_text != "":
+            self.client.index(
+                index="message_index", body={"message": search_text}
+            )
+        response = self.client.search(index="gif", body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
-
-    # def search_related(self, request):
-    #     """
-    #     [related match]
-    #         This function search targets based on relevant words.
-
-    #     [params]
-    #         requset: filter info
-    #         {
-    #             "target": str, (default="")
-    #             "keyword": str, (keywords actually, must) 
-    #             "category": str, (default="")
-    #             "filter": [
-    #                 {"range": {"width": {"gte": min, "lte": max}}},
-    #                 {"range": {"height": {"gte": min, "lte": max}}},
-    #                 {"range": {"duration": {"gte": min, "lte": max}}}
-    #             ], (default=[])
-    #             "tags": [str1, str2, str3 ...] (default=[])
-    #         }
-
-    #     [return value]
-    #         list of gif ids
-    #     """
-
-    #     # query example
-    #     # {
-    #     #     "query": {
-    #     #         "bool": {
-    #     #             "must": [
-    #     #                 {"terms": {
-    #     #                       "title": ["dinner", "supper"]
-    #     #                   }},
-    #     #                 {"term": {"category.keyword": "animal"}} # optional
-    #     #                 {"terms_set": {
-    #     #                     "tags": {
-    #     #                         "terms": ["animal", "cat"],
-    #     #                         "minimum_should_match_script": {
-    #     #                             "source": "2"
-    #     #                         }
-    #     #                     }
-    #     #                 }}
-    #     #                 {"range": {"width": {"gte": 1, "lte": 2}}},
-    #     #                 {"range": {"height": {"gte": 1, "lte": 2}}},
-    #     #                 {"range": {"duration": {"gte": 1, "lte": 2}}}
-    #     #             ]
-    #     #         }
-    #     #     }
-    #     # }
-
-    #     body = {
-    #         "query": {
-    #             "bool": {
-    #                 "must": []
-    #             }
-    #         }
-    #     }
-
-    #     # match title or uploader
-    #     must_array = []
-    #     target = request["target"]
-    #     search_text = request["keyword"]
-    #     synonyms_list = get_synonyms(request["keyword"])
-    #     # print(f"synonyms_list = {synonyms_list}")
-    #     if target == "uploader":
-    #         must_array.append({
-    #             "terms": {
-    #                 "uploader": synonyms_list
-    #             }
-    #         })
-    #     elif target == "title":
-    #         must_array.append({
-    #             "terms": {
-    #                 "title": synonyms_list
-    #             }
-    #         })
-
-    #     # filter width / height / duration
-    #     must_array += request["filter"]
-
-    #     # filter category
-    #     if request["category"] != "":
-    #         must_array.append(
-    #             {"term": {"category.keyword": request["category"]}})
-
-    #     # filter tags
-    #     # tags provided by user should be the subset of real gif tags
-    #     tags = request["tags"]
-    #     if tags:
-    #         must_array.append({"terms_set": {
-    #             "tags": {
-    #                 "terms": tags,
-    #                 "minimum_should_match_script": {
-    #                     "source": str(len(tags))
-    #                 }
-    #             }
-    #         }})
-
-    #     body["query"]["bool"]["must"] = must_array
-    #     self.client.index(index="message_index", body={"message": search_text})
-    #     response = self.client.search(body=body, size=10000, preference="primary")
-    #     # hits_num = response["hits"]["total"]["value"]
-    #     return [hit["_id"] for hit in response["hits"]["hits"]]
-
+    
     def search_related(self, request):
         """
         [related search]
@@ -414,8 +298,11 @@ class ElasticSearchEngine():
         #     "query": {
         #         "bool": {
         #             "must": [
-        #                 {"terms": {
-        #                       "title": ["dinner", "supper"]
+        #                 {"match": {
+        #                    "title": {
+        #                       "query": "done",
+        #                        "analyzer": "my_analyzer"
+        #                     }
         #                   }},
         #                 {"term": {"category.keyword": "animal"}} # optional
         #                 {"terms_set": {
@@ -448,14 +335,20 @@ class ElasticSearchEngine():
         search_text = request["keyword"]
         if target == "uploader":
             must_array.append({
-                "terms": {
-                    "uploader": request["keyword"].split(",")
+                "match": {
+                    "uploader": {
+                        "query": request["keyword"],
+                        "analyzer": "my_analyzer"
+                    }
                 }
             })
         elif target == "title":
             must_array.append({
-                "terms": {
-                    "title": request["keyword"].split(",")
+                "match": {
+                    "title": {
+                        "query": request["keyword"],
+                        "analyzer": "my_analyzer"
+                    }
                 }
             })
 
@@ -481,11 +374,13 @@ class ElasticSearchEngine():
             }})
 
         body["query"]["bool"]["must"] = must_array
-        self.client.index(index="message_index", body={"message": search_text})
-        response = self.client.search(body=body, size=10000, preference="primary")
+        if search_text != "":
+            self.client.index(
+                index="message_index", body={"message": search_text}
+            )
+        response = self.client.search(index="gif", body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
-
 
     def search_fuzzy(self, request):
         '''
@@ -518,6 +413,7 @@ class ElasticSearchEngine():
 
         # match title or uploader
         must_array = []
+        search_text = request["keyword"]
         if request["target"] == "uploader":
             # must_array.append({
             #     "fuzzy": {
@@ -535,7 +431,7 @@ class ElasticSearchEngine():
             must_array.append({
                 "match": {
                     "uploader": {
-                        "query": request["keyword"],
+                        "query": search_text,
                         "fuzziness": "AUTO",
                         "operator": "and"
                     }
@@ -545,7 +441,7 @@ class ElasticSearchEngine():
             must_array.append({
                 "match": {
                     "title": {
-                        "query": request["keyword"],
+                        "query": search_text,
                         "fuzziness": "AUTO",
                         "operator": "and"
                     }
@@ -577,12 +473,13 @@ class ElasticSearchEngine():
             }})
 
         body["query"]["bool"]["must"] = must_array
-       
-        response = self.client.search(body=body, size=10000, preference="primary")
-
+        if search_text != "":
+            self.client.index(
+                index="message_index", body={"message": search_text}
+            )
+        response = self.client.search(index="gif", body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
-
 
     def hotwords_search(self):
         """
@@ -608,7 +505,10 @@ class ElasticSearchEngine():
             }
         }
         response = self.client.search(index="message_index", body=body)
-        return [bucket["key"] for bucket in response["aggregations"]["messages"]["buckets"]]
+        return [
+            bucket["key"]
+            for bucket in response["aggregations"]["messages"]["buckets"]
+        ]
 
     def personalization_search(self, tag_fre):
         """
@@ -668,7 +568,7 @@ class ElasticSearchEngine():
                 }
             })
 
-        response = self.client.search(index="gif", body=body, size=10000)
+        response = self.client.search(index="gif", body=body, size=10000, preference="primary")
         # hits_num = response["hits"]["total"]["value"]
         return [hit["_id"] for hit in response["hits"]["hits"]]
 
@@ -711,11 +611,12 @@ class ElasticSearchEngine():
             }
         }
 
-        response = self.client.search(body=body, size=10000, preference="primary")
+        response = self.client.search(index="gif", body=body, preference="primary")
         return [
             op["_source"]["suggest"]
             for op in response["suggest"]["title_suggest"][0]["options"]
         ]
+
     def post_metadata(self, data):
         """
         [post meta data]
@@ -755,13 +656,6 @@ class ElasticSearchEngine():
         )
         return response
 
-    # def correct(self, input):
-    #     if contains_chinese(input):
-    #         corrected_sent, detail = pycorrector.correct(input)
-    #     else:
-    #         corrected_sent, detail = pycorrector.en_correct(input)
-    #     # print(f"corrected_sent = {corrected_sent}")
-    #     return corrected_sent
     def correct_search(self, input, target):
         """
         [correct user input]
@@ -788,16 +682,17 @@ class ElasticSearchEngine():
         body["suggest"]["correct"]["phrase"] = phrase
         body["suggest"]["correct"]["text"] = input
 
-        response = self.client.search(index="gif", body=body)
+        response = self.client.search(index="gif", body=body, preference="primary")
         return [
             option["text"]
             for option in response["suggest"]["correct"][0]["options"]
         ]
 
+
 # end ElasticSearchEngine
 
 
-def test_perfect_search():
+def test_search_perfect():
     """
     Unit test for perfect_metadata
     """
@@ -814,6 +709,42 @@ def test_perfect_search():
     # print(response)
     assert len(response) > 0
     print("[test perfect search pass]")
+
+def test_search_related():
+    """
+    Unit test for related search
+    """
+
+    request1 = {
+        "target": "title",
+        "keyword": "kid",
+        "category": "",
+        "filter": [],
+        "tags": []
+    }
+
+    response = ElasticSearchEngine().search_related(request1)
+    assert len(response) >= 0
+    # print("response: ", response)
+    print("[test related search pass]")
+
+def test_search_fuzzy():
+    """
+    Unit test for fuzzy search
+    """
+
+    request1 = {
+        "target": "title",
+        "keyword": "dinner,food,delicious",
+        "category": "food",
+        "filter": [],
+        "tags": ["food"]
+    }
+
+    response = ElasticSearchEngine().search_fuzzy(request1)
+    # print(response)
+    assert len(response) >= 0
+    print("[test fuzzy search pass]")
 
 
 def test_post_metadata():
@@ -853,7 +784,6 @@ def test_hotwords_search():
     """
 
     response = ElasticSearchEngine().hotwords_search()
-    print("response: ", response)
     assert response
     print("[test hot word pass]")
 
@@ -873,49 +803,32 @@ def test_personlization_search():
     """
     Unit test for personlization search
     """
-    response = ElasticSearchEngine().personalization_search({"dog": 0.9, "animal": 0.1})
+    response = ElasticSearchEngine().personalization_search({
+        "dog": 0.9, "animal": 0.1})
     # print("response: ", response)
     print("[test personlization search pass]")
-
 
 def test_correct_search():
     """
     Unit test for correct
     """
     response = ElasticSearchEngine().correct_search(
-        input="fodd and drinnk", target="title"
+        input="fodd and driink", target="title"
     )
     print("response: ", response)
     print("[correct pass]")
 
 
-# def test_synonyms(sentence):
-#     synonyms_list = get_synonyms(sentence)
-#     print(f"synonyms_list = {synonyms_list}")
-#     print("[test synonyms pass]")
-
-
-# def test_correct(sentence):
-#     corrected = ElasticSearchEngine().correct(sentence)
-#     print(f"corrected = {corrected}")
-#     print("[test correct pass]")
-
-
 if __name__ == "__main__":
 
-    test_perfect_search()
+    test_search_perfect()
+    test_search_related()
+    test_search_fuzzy()
     test_post_metadata()
     test_suggest_search()
     test_personlization_search()
     test_hotwords_search()
     test_correct_search()
-    # test_synonyms("")
-    # test_synonyms("fun")   # assert ['fun', 'Fun', 'phone']
-    # test_synonyms("food")  # assert ['food', 'crops', 'cooked']
-    # test_synonyms("食物")  # assert ['食物', '食材', '水果']
-    # test_correct("falut sentence")  # assert 'fault sentence'
-    # test_correct("少先队员因该为老人让坐")  # assert '少先队员应该为老人让座'
-
 
 # if __name__ == "__main__":
 

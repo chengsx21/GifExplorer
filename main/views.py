@@ -2663,8 +2663,7 @@ def image_search(req: HttpRequest):
             elif body["type"] == "fuzzy":
                 id_list = search_engine.search_fuzzy(request=body)
             elif body["type"] == "related":
-                id_list = []
-                # id_list = search_engine.search_related(request=body)
+                id_list = search_engine.search_related(request=body)
             else:
                 return format_error()
 
@@ -2735,7 +2734,7 @@ def search_suggest(req: HttpRequest):
             return request_success(data=
                 {
                     "data": {
-                        "suggestions": suggestion_list + corrected_list
+                        "suggestions": helpers.deduplicate(suggestion_list + corrected_list)
                     }
                 })
         else:
