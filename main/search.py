@@ -131,7 +131,7 @@ class ElasticSearchEngine():
         tags = request["tags"]
         if tags:
             must_array.append({"terms_set": {
-                "tags": {
+                "tags.keyword": {
                     "terms": tags,
                     "minimum_should_match_script": {
                         "source": str(len(tags))
@@ -250,16 +250,14 @@ class ElasticSearchEngine():
         # tags provided by user should be the subset of real gif tags
         tags = request["tags"]
         if tags:
-            must_array.append({
-                "terms_set": {
-                    "tags": {
-                        "terms": tags,
-                        "minimum_should_match_script": {
-                            "source": str(len(tags))
-                        }
+            must_array.append({"terms_set": {
+                "tags.keyword": {
+                    "terms": tags,
+                    "minimum_should_match_script": {
+                        "source": str(len(tags))
                     }
                 }
-            })
+            }})
 
         body["query"]["bool"]["must"] = must_array
         if search_text != "":
@@ -365,7 +363,7 @@ class ElasticSearchEngine():
         tags = request["tags"]
         if tags:
             must_array.append({"terms_set": {
-                "tags": {
+                "tags.keyword": {
                     "terms": tags,
                     "minimum_should_match_script": {
                         "source": str(len(tags))
@@ -464,7 +462,7 @@ class ElasticSearchEngine():
         tags = request["tags"]
         if tags:
             must_array.append({"terms_set": {
-                "tags": {
+                "tags.keyword": {
                     "terms": tags,
                     "minimum_should_match_script": {
                         "source": str(len(tags))
