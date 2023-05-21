@@ -2654,7 +2654,7 @@ def search_suggest(req: HttpRequest):
     request:
         {
             "query": "Hello" (default = ""),
-            "target": "title" (default = "title")
+            "target": "title" (default = "title"),
             "correct": True (default = True)
         }
     response:
@@ -2687,22 +2687,33 @@ def search_suggest(req: HttpRequest):
         # 连接搜索模块
         search_engine = config.SEARCH_ENGINE
 
-        suggestion_list = search_engine.suggest_search(body["query"])
-        # 如果建议结果较少且需要纠错
-        if len(suggestion_list) < 4 and body["correct"]:
-            # 获取纠错建议
+        if body["target"] == "title":
+            # 如果 body["target"] == "title" 先获取补全建议
+            suggestion_list = search_engine.suggest_search(body["query"])
+            # 如果建议结果较少且需要纠错
+            if len(suggestion_list) < 4 and body["correct"]:
+                # 获取纠错建议
+                corrected_list = search_engine.correct_search(input=body["query"], target=body["target"])
+                return request_success(data=
+                    {
+                        "data": {
+                            "suggestions": helpers.deduplicate(suggestion_list + corrected_list)
+                        }
+                    })
+            else:
+                return request_success(data=
+                    {
+                        "data": {
+                            "suggestions": suggestion_list
+                        }
+                    })
+        else:
+            # 如果 body["target"] == "uploader" ，直接纠错
             corrected_list = search_engine.correct_search(input=body["query"], target=body["target"])
             return request_success(data=
                 {
                     "data": {
-                        "suggestions": helpers.deduplicate(suggestion_list + corrected_list)
-                    }
-                })
-        else:
-            return request_success(data=
-                {
-                    "data": {
-                        "suggestions": suggestion_list
+                        "suggestions": corrected_list
                     }
                 })
     return not_found_error()
