@@ -1108,6 +1108,9 @@ def image_upload(req: HttpRequest):
         if os.getenv('DEPLOY') is not None:
             helpers.post_search_metadata(user, gif)
 
+        if user.user_name != "spider":
+            helpers.post_message_to_fans(user, gif.id)
+
         return_data = {
             "data": {
                 "id": gif.id,
@@ -1327,6 +1330,9 @@ def image_upload_resize_task(*, title: str, category: str, tags: list, user: int
         upload_user = UserInfo.objects.filter(id=user).first()
         if os.getenv('DEPLOY') is not None:
             helpers.post_search_metadata(upload_user, gif)
+
+        if upload_user.user_name != "spider":
+            helpers.post_message_to_fans(upload_user, gif.id)
 
         return_data = {
             "id": gif.id,
@@ -1904,6 +1910,9 @@ def image_upload_video_task(*, title: str, category: str, tags: list, user: int,
         upload_user = UserInfo.objects.filter(id=user).first()
         if os.getenv('DEPLOY') is not None:
             helpers.post_search_metadata(upload_user, gif)
+
+        if upload_user.user_name != "spider":
+            helpers.post_message_to_fans(upload_user, gif.id)
 
         return_data = {
             "id": gif.id,
@@ -2655,6 +2664,7 @@ def image_search(req: HttpRequest):
                 content = body["keyword"]
                 if content:
                     helpers.post_user_search_history(user=user, search_content=content)
+                    helpers.update_user_tags(user, [content])
 
             if body["type"] == "perfect":
                 id_list = search_engine.search_perfect(request=body)

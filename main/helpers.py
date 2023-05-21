@@ -479,3 +479,14 @@ def deduplicate(list):
     Deduplicate a list
     '''
     return [x for i, x in enumerate(list) if x not in list[:i]]
+
+def post_message_to_fans(user: UserInfo, gif_id: int):
+    '''
+        Post message to fans
+    '''
+    fans = user.followers
+    for fan_id, _ in fans.items():
+        fan = UserInfo.objects.filter(id=int(fan_id)).first()
+        if fan:
+            message = Message(sender=user, receiver=fan, message=f"我发布了新的作品，快去 https://gifexplorer-frontend-nullptr.app.secoder.net/image/{gif_id} 看看吧~")
+            message.save()
