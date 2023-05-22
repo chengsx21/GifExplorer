@@ -2605,6 +2605,7 @@ def image_search(req: HttpRequest):
 
         search_start_time = time.time()
         # 通过正则表达式搜索
+        id_list = []
         if body["type"] == "regex":
             query = Q()
             if body["filter"]:
@@ -2652,7 +2653,7 @@ def image_search(req: HttpRequest):
         else:
             # 连接搜索模块
             cache_body = helpers.generate_cache_body(body)
-            if cache_body in config.CACHE_HISTORY:
+            if (os.getenv('DEPLOY') is not None) and (cache_body in config.CACHE_HISTORY):
                 if (datetime.datetime.now().timestamp() - config.CACHE_HISTORY[cache_body][1] < config.CACHE_MAX_TIME) and (config.CACHE_HISTORY[cache_body][2] == body["tags"]):
                     id_list = config.CACHE_HISTORY[cache_body][0]
                     print("Cached!")
@@ -2683,11 +2684,12 @@ def image_search(req: HttpRequest):
                 else:
                     return format_error()
 
-                config.CACHE_HISTORY[cache_body] = (id_list, datetime.datetime.now().timestamp(), body["tags"])
-                if len(config.CACHE_HISTORY) > config.MAX_CACHE_HISTORY:
-                    cache_history = list(config.CACHE_HISTORY.items())
-                    config.CACHE_HISTORY = dict(sorted(cache_history, key=lambda x: x[1], reverse=True)[: config.MAX_CACHE_HISTORY // 2])
-                print("No cached!")
+                if os.getenv('DEPLOY') is not None:
+                    config.CACHE_HISTORY[cache_body] = (id_list, datetime.datetime.now().timestamp(), body["tags"])
+                    if len(config.CACHE_HISTORY) > config.MAX_CACHE_HISTORY:
+                        cache_history = list(config.CACHE_HISTORY.items())
+                        config.CACHE_HISTORY = dict(sorted(cache_history, key=lambda x: x[1], reverse=True)[: config.MAX_CACHE_HISTORY // 2])
+                    print("No cached!")
         search_finish_time = time.time()
 
         gifs = GifMetadata.objects.filter(id__in=id_list)
