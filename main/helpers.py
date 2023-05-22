@@ -474,11 +474,11 @@ def show_user_message_page(user: UserInfo, other_user: UserInfo, page: int):
         })
     return messages_list, math.ceil(len(user_messages) / MAX_MESSAGES_PER_PAGE)
 
-def deduplicate(list):
+def deduplicate(list_to_deduplicate):
     '''
-    Deduplicate a list
+        Deduplicate a list
     '''
-    return [x for i, x in enumerate(list) if x not in list[:i]]
+    return [x for i, x in enumerate(list_to_deduplicate) if x not in list_to_deduplicate[:i]]
 
 def post_message_to_fans(user: UserInfo, gif_id: int):
     '''
@@ -490,3 +490,18 @@ def post_message_to_fans(user: UserInfo, gif_id: int):
         if fan:
             message = Message(sender=user, receiver=fan, message=f"我发布了新的作品，快去 https://gifexplorer-frontend-nullptr.app.secoder.net/image/{gif_id} 看看吧~")
             message.save()
+
+def generate_cache_body(body):
+    '''
+        Generate cache body
+    '''
+    width_param, height_param, duration_param = '0_0', '0_0', '0_0'
+    for item in body["filter"]:
+        if "range" in item and "width" in item["range"]:
+            width_param = str(item["range"]["width"]["gte"]) + '_' + str(item["range"]["width"]["lte"])
+        if "range" in item and "height" in item["range"]:
+            height_param = str(item["range"]["height"]["gte"]) + '_' + str(item["range"]["height"]["lte"])
+        if "range" in item and "duration" in item["range"]:
+            duration_param = str(item["range"]["duration"]["gte"]) + '_' + str(item["range"]["duration"]["lte"])
+    cache_body = body["type"] + '_' + body["target"] + '_' + body["keyword"] + '_' + body["category"] + '_' + width_param + '_' + height_param + '_' + duration_param + '_' + str(body["page"])
+    return cache_body

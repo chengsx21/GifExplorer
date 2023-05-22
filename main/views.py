@@ -11,7 +11,6 @@ import io
 import time
 import datetime
 import imghdr
-import re
 import imageio
 import imagehash
 from jwt import DecodeError
@@ -2575,7 +2574,7 @@ def image_search(req: HttpRequest):
             assert body["type"] in ["perfect", "partial", "fuzzy", "regex", "related"]
         except Exception as error:
             print(error)
-            return format_error()        
+            return format_error()
         # page 默认为 1
         if "page" not in body:
             body["page"] = 1
@@ -2652,36 +2651,47 @@ def image_search(req: HttpRequest):
         # 通过关键词搜索
         else:
             # 连接搜索模块
-            search_engine = config.SEARCH_ENGINE
+            cache_body = helpers.generate_cache_body(body)
+            if cache_body in config.CACHE_HISTORY:
+                if (datetime.datetime.now().timestamp() - config.CACHE_HISTORY[cache_body][1] < config.CACHE_MAX_TIME) and (config.CACHE_HISTORY[cache_body][2] == body["tags"]):
+                    id_list = config.CACHE_HISTORY[cache_body][0]
+                    print("Cached!")
 
-            # 如果用户已登录，将本次搜索记录到用户的搜索历史中
-            if req.META.get("HTTP_AUTHORIZATION"):
-                encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
-                token = helpers.decode_token(encoded_token)
-                if not helpers.is_token_valid(token=encoded_token):
-                    return unauthorized_error()
-                user = UserInfo.objects.filter(id=token["id"]).first()
-                content = body["keyword"]
-                if content:
-                    helpers.post_user_search_history(user=user, search_content=content)
-                    helpers.update_user_tags(user, [content])
-
-            if body["type"] == "perfect":
-                id_list = search_engine.search_perfect(request=body)
-            elif body["type"] == "partial":
-                id_list = search_engine.search_partial(request=body)
-            elif body["type"] == "fuzzy":
-                id_list = search_engine.search_fuzzy(request=body)
-            elif body["type"] == "related":
-                id_list = search_engine.search_related(request=body)
             else:
-                return format_error()
+                search_engine = config.SEARCH_ENGINE
 
+                # 如果用户已登录，将本次搜索记录到用户的搜索历史中
+                if req.META.get("HTTP_AUTHORIZATION"):
+                    encoded_token = str(req.META.get("HTTP_AUTHORIZATION"))
+                    token = helpers.decode_token(encoded_token)
+                    if not helpers.is_token_valid(token=encoded_token):
+                        return unauthorized_error()
+                    user = UserInfo.objects.filter(id=token["id"]).first()
+                    content = body["keyword"]
+                    if content:
+                        helpers.post_user_search_history(user=user, search_content=content)
+                        helpers.update_user_tags(user, [content])
+
+                if body["type"] == "perfect":
+                    id_list = search_engine.search_perfect(request=body)
+                elif body["type"] == "partial":
+                    id_list = search_engine.search_partial(request=body)
+                elif body["type"] == "fuzzy":
+                    id_list = search_engine.search_fuzzy(request=body)
+                elif body["type"] == "related":
+                    id_list = search_engine.search_related(request=body)
+                else:
+                    return format_error()
+
+                config.CACHE_HISTORY[cache_body] = (id_list, datetime.datetime.now().timestamp(), body["tags"])
+                if len(config.CACHE_HISTORY) > config.MAX_CACHE_HISTORY:
+                    cache_history = list(config.CACHE_HISTORY.items())
+                    config.CACHE_HISTORY = dict(sorted(cache_history, key=lambda x: x[1], reverse=True)[: config.MAX_CACHE_HISTORY // 2])
+                print("No cached!")
         search_finish_time = time.time()
 
-        # print(f"id_list[:10] = {id_list[:10]}")
-        id_list = [id for id in id_list if GifMetadata.objects.filter(id=id).first()]
-        # print(f"id_list = {id_list}")
+        gifs = GifMetadata.objects.filter(id__in=id_list)
+        id_list = [gif.id for gif in gifs]
         gif_list, pages = helpers.show_search_page(id_list, body["page"] - 1)
 
         finish_time = time.time()
@@ -2727,8 +2737,8 @@ def search_suggest(req: HttpRequest):
         if "query" not in body:
             body["query"] = ""
         try:
-           assert body["target"] in ["title", "uploader"]
-        except:
+            assert body["target"] in ["title", "uploader"]
+        except Exception as _:
             body["target"] = "title"
         if "correct" not in body:
             body["correct"] = True
